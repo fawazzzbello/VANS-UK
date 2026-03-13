@@ -32,9 +32,7 @@ services:
 
   # ─── API Server ───────────────────────────────────────────
   api:
-    build:
-      context: .
-      target: api
+    build: .
     ports:
       - "8000:8000"
     environment:
@@ -55,9 +53,8 @@ services:
 
   # ─── ANPR Processor (scalable) ────────────────────────────
   anpr-processor:
-    build:
-      context: .
-      target: anpr-processor
+    build: .
+    command: ["python", "-m", "src.ingestion.anpr_processor"]
     environment:
       REDIS_URL: redis://redis:6379
       WORKER_ID: anpr-${HOSTNAME:-1}
@@ -70,9 +67,8 @@ services:
 
   # ─── Violation Engine (scalable) ──────────────────────────
   violation-engine:
-    build:
-      context: .
-      target: violation-engine
+    build: .
+    command: ["python", "-m", "src.processing.violation_engine"]
     environment:
       DATABASE_URL: postgresql+asyncpg://vans:${POSTGRES_PASSWORD:-vans_dev_password}@postgres:5432/vans_uk
       REDIS_URL: redis://redis:6379
@@ -89,9 +85,8 @@ services:
 
   # ─── Notification Service (scalable) ──────────────────────
   notification-service:
-    build:
-      context: .
-      target: notification-service
+    build: .
+    command: ["python", "-m", "src.alerting.notification_service"]
     environment:
       DATABASE_URL: postgresql+asyncpg://vans:${POSTGRES_PASSWORD:-vans_dev_password}@postgres:5432/vans_uk
       REDIS_URL: redis://redis:6379
@@ -112,9 +107,8 @@ services:
 
   # ─── Data Ingestion Workers ───────────────────────────────
   ingestion-highways:
-    build:
-      context: .
-      target: ingestion-highways
+    build: .
+    command: ["python", "execution/ingest_highways.py"]
     environment:
       REDIS_URL: redis://redis:6379
       HIGHWAYS_API_KEY: ${HIGHWAYS_API_KEY:-}
@@ -124,9 +118,8 @@ services:
     restart: unless-stopped
 
   ingestion-tfl:
-    build:
-      context: .
-      target: ingestion-tfl
+    build: .
+    command: ["python", "execution/ingest_tfl.py"]
     environment:
       REDIS_URL: redis://redis:6379
       TFL_APP_KEY: ${TFL_APP_KEY:-}
