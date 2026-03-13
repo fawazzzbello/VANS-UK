@@ -1,0 +1,139 @@
+# VANS UK - Full System Deployment
+# Run: docker-compose up --build --scale violation-engine=3 --scale notification-service=2
+
+services:
+  # ─── Infrastructure ───────────────────────────────────────
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: vans_uk
+      POSTGRES_USER: vans
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vans_dev_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vans -d vans_uk"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─── API Server ───────────────────────────────────────────
+  api:
+    build:
+      context: .
+      target: api
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://vans:${POSTGRES_PASSWORD:-vans_dev_password}@postgres:5432/vans_uk
+      REDIS_URL: redis://redis:6379
+      DVLA_API_KEY: ${DVLA_API_KEY:-}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER:-}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ─── ANPR Processor (scalable) ────────────────────────────
+  anpr-processor:
+    build:
+      context: .
+      target: anpr-processor
+    environment:
+      REDIS_URL: redis://redis:6379
+      WORKER_ID: anpr-${HOSTNAME:-1}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+
+  # ─── Violation Engine (scalable) ──────────────────────────
+  violation-engine:
+    build:
+      context: .
+      target: violation-engine
+    environment:
+      DATABASE_URL: postgresql+asyncpg://vans:${POSTGRES_PASSWORD:-vans_dev_password}@postgres:5432/vans_uk
+      REDIS_URL: redis://redis:6379
+      DVLA_API_KEY: ${DVLA_API_KEY:-}
+      WORKER_ID: engine-${HOSTNAME:-1}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      replicas: 3
+
+  # ─── Notification Service (scalable) ──────────────────────
+  notification-service:
+    build:
+      context: .
+      target: notification-service
+    environment:
+      DATABASE_URL: postgresql+asyncpg://vans:${POSTGRES_PASSWORD:-vans_dev_password}@postgres:5432/vans_uk
+      REDIS_URL: redis://redis:6379
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER:-}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      ALERT_FROM_EMAIL: ${ALERT_FROM_EMAIL:-alerts@vans-uk.gov.uk}
+      WORKER_ID: notifier-${HOSTNAME:-1}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+
+  # ─── Data Ingestion Workers ───────────────────────────────
+  ingestion-highways:
+    build:
+      context: .
+      target: ingestion-highways
+    environment:
+      REDIS_URL: redis://redis:6379
+      HIGHWAYS_API_KEY: ${HIGHWAYS_API_KEY:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ingestion-tfl:
+    build:
+      context: .
+      target: ingestion-tfl
+    environment:
+      REDIS_URL: redis://redis:6379
+      TFL_APP_KEY: ${TFL_APP_KEY:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:

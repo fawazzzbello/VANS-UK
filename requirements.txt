@@ -15,9 +15,6 @@ psycopg2-binary==2.9.10
 sqlalchemy==2.0.36
 asyncpg==0.30.0
 
-# Task queue
-celery[redis]==5.4.0
-
 # Data validation
 pydantic==2.10.3
 

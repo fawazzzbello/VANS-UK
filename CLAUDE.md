@@ -1,91 +1,109 @@
 # VANS UK - Vehicle Alert Notification System UK
 
-Real-Time Driver Violation Alerts and Traffic Information for the UK.
+Real-Time Driver Violation Alerts for the United Kingdom.
+Inspired by Dubai's RTA instant notification system - when a driver commits a violation,
+they receive an SMS within seconds.
 
-## Project Overview
+## How It Works
 
-VANS UK monitors UK roads for driver violations (speeding, red-light running, illegal turns, etc.) and delivers real-time alerts to relevant authorities and subscribers. It also aggregates and serves general traffic information (congestion, incidents, roadworks).
+```
+ANPR Camera → Plate Read → DVLA Lookup → Violation Check → Instant SMS
+     │              │            │              │               │
+  <1 sec         <1 sec       <2 sec         <1 sec          <3 sec
+                                                        ─────────────
+                                                        Total: <10 sec
+```
 
 ## 3-Layer Architecture
 
-This project follows a 3-layer architecture that separates concerns for reliability:
-
 ### Layer 1: Directives (`directives/`)
-- SOPs written in Markdown
-- Define goals, inputs, tools/scripts, outputs, and edge cases
-- Natural language instructions for each workflow
+- SOPs in Markdown: goals, inputs, tools, outputs, edge cases
 
 ### Layer 2: Orchestration (AI Agent)
-- Reads directives, calls execution tools in the right order
-- Handles errors, asks for clarification, updates directives with learnings
-- Routes between intent and execution
+- Reads directives, calls execution tools, handles errors, updates directives
 
 ### Layer 3: Execution (`execution/`)
-- Deterministic Python scripts
-- Handle API calls, data processing, file operations, database interactions
-- Reliable, testable, fast
+- Deterministic Python scripts for API calls, data processing, DB operations
 
 ## Directory Structure
 
 ```
 VANS-UK/
-├── CLAUDE.md              # This file - project instructions
-├── directives/            # Layer 1: SOPs and workflow definitions
-├── execution/             # Layer 3: Deterministic Python scripts
-├── src/                   # Core application source code
-│   ├── ingestion/         # Data ingestion from cameras, sensors, APIs
-│   ├── processing/        # Violation detection and data processing
-│   ├── alerting/          # Notification and alert delivery
-│   ├── api/               # REST API for external consumers
-│   ├── models/            # Data models and schemas
-│   └── utils/             # Shared utilities
-├── tests/                 # Test suite
-├── config/                # Configuration files
-├── .tmp/                  # Intermediate files (gitignored, regenerated)
-└── .env                   # Environment variables (gitignored)
+├── CLAUDE.md                          # Project instructions
+├── src/
+│   ├── ingestion/
+│   │   ├── anpr_processor.py          # ANPR camera feed processor (consumer groups)
+│   │   └── dvla_lookup.py             # DVLA Vehicle Enquiry Service integration
+│   ├── processing/
+│   │   └── violation_engine.py        # Real-time violation detection engine
+│   ├── alerting/
+│   │   └── notification_service.py    # Instant SMS/email notification (Dubai-style)
+│   ├── api/
+│   │   ├── main.py                    # FastAPI application
+│   │   └── routes/                    # API route modules
+│   └── models/
+│       ├── orm.py                     # SQLAlchemy ORM models
+│       ├── schemas.py                 # Pydantic request/response schemas
+│       └── database.py                # Async DB connection management
+├── execution/                         # Standalone execution scripts
+├── directives/                        # Workflow SOPs
+├── tests/                             # Test suite
+├── config/                            # Configuration files
+├── Dockerfile                         # Multi-stage Docker build
+├── docker-compose.yml                 # Full system deployment
+└── .env.example                       # Environment variable template
 ```
 
-## Key Data Sources (UK-Specific)
+## Key Data Sources
 
-- **DVLA** - Driver and Vehicle Licensing Agency data
-- **Highways England / National Highways** - Traffic flow and incident data
-- **ANPR** - Automatic Number Plate Recognition camera feeds
-- **TfL** - Transport for London open data APIs
-- **Police API** - UK Police data API for incident correlation
-- **OS Maps** - Ordnance Survey mapping data
-
-## Operating Principles
-
-1. **Check for tools first** - Before writing a script, check `execution/`. Only create new scripts if none exist.
-2. **Self-anneal when things break** - Read errors, fix scripts, update directives with learnings.
-3. **Update directives as you learn** - Directives are living documents. Update when you discover constraints, better approaches, or edge cases.
-4. **Deliverables vs Intermediates** - Deliverables go to cloud services. Intermediates go to `.tmp/` and are never committed.
+- **DVLA VES API** - Vehicle enquiry, keeper details, tax/MOT status
+- **ANPR Cameras** - Number plate reads with speed measurements
+- **National Highways** - Traffic flow and incident data
+- **TfL** - Transport for London disruption data
 
 ## Tech Stack
 
 - **Language**: Python 3.11+
-- **Async Framework**: FastAPI
-- **Message Queue**: Redis Streams (for real-time event processing)
-- **Database**: PostgreSQL with PostGIS (geospatial queries)
-- **Cache**: Redis
-- **Task Queue**: Celery (for background processing)
+- **API**: FastAPI with async/await
+- **Message Queue**: Redis Streams (consumer groups for horizontal scaling)
+- **Database**: PostgreSQL + PostGIS (geospatial queries)
+- **SMS**: Twilio
+- **Email**: SendGrid
+- **Deployment**: Docker Compose with scalable workers
 - **Testing**: pytest
 
 ## Development Commands
 
 ```bash
-# Install dependencies
+# Full system (Docker)
+docker-compose up --build
+
+# Scale workers for load
+docker-compose up --build --scale violation-engine=5 --scale notification-service=3
+
+# Local development
 pip install -r requirements.txt
+uvicorn src.api.main:app --reload --port 8000
 
 # Run tests
 pytest tests/ -v
 
-# Run the API server (development)
-uvicorn src.api.main:app --reload --port 8000
-
-# Run linting
-ruff check src/ tests/
-
-# Run type checking
-mypy src/
+# ANPR simulation (for demos)
+curl -X POST http://localhost:8000/api/v1/anpr/simulate \
+  -H "Content-Type: application/json" \
+  -d '{"readings_per_second": 50, "duration_seconds": 60}'
 ```
+
+## Violation Types
+
+| Code | Type | Fine | Points |
+|------|------|------|--------|
+| SPD | Speeding | £100 | 3 |
+| RLR | Red Light Running | £100 | 3 |
+| BUS | Bus Lane | £65 | 0 |
+| CON | Congestion Charge | £160 | 0 |
+| INS | No Insurance | £300 | 6 |
+| MOT | No MOT | £1,000 | 0 |
+| TAX | No Vehicle Tax | £1,000 | 0 |
+| PHN | Phone Use | £200 | 6 |
+| SBT | Seatbelt | £500 | 0 |
