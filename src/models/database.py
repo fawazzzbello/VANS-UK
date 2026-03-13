@@ -1,5 +1,6 @@
 """Database connection and session management."""
 
+import logging
 import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
@@ -11,15 +12,34 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import DeclarativeBase
 
+logger = logging.getLogger(__name__)
 
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql+asyncpg://user:password@localhost:5432/vans_uk",
-)
 
-# Convert psycopg2-style URL to asyncpg if needed
-if DATABASE_URL.startswith("postgresql://"):
-    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+def _build_database_url() -> str:
+    """Build async database URL from environment, handling Railway format."""
+    url = os.environ.get("DATABASE_URL", "")
+
+    if not url:
+        # No DATABASE_URL set - use a default for local dev
+        return "postgresql+asyncpg://user:password@localhost:5432/vans_uk"
+
+    # Railway/Heroku use postgres:// which SQLAlchemy doesn't accept
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+    # Railway requires SSL - add sslmode if not already present
+    if "sslmode" not in url:
+        separator = "&" if "?" in url else "?"
+        url = f"{url}{separator}ssl=require"
+
+    return url
+
+
+DATABASE_URL = _build_database_url()
+
+_db_available = bool(os.environ.get("DATABASE_URL"))
 
 engine = create_async_engine(
     DATABASE_URL,
@@ -38,9 +58,18 @@ class Base(DeclarativeBase):
 
 
 async def init_db():
-    """Create all tables."""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    """Create all tables. Logs warning and continues if DB is unreachable."""
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database tables initialized successfully")
+    except Exception as e:
+        logger.warning(
+            "Could not initialize database: %s. "
+            "API will start but database-dependent endpoints will fail. "
+            "Ensure DATABASE_URL is set and the database is reachable.",
+            e,
+        )
 
 
 @asynccontextmanager
