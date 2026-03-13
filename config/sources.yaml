@@ -1,0 +1,27 @@
+# VANS UK - Data Source Configuration
+
+sources:
+  national_highways:
+    enabled: true
+    poll_interval_seconds: 60
+    base_url: "https://api.nationalhighways.co.uk"
+    endpoints:
+      incidents: "/v1/traffic/incidents"
+      roadworks: "/v1/traffic/roadworks"
+      vms: "/v1/traffic/vms"
+
+  tfl:
+    enabled: true
+    poll_interval_seconds: 30
+    base_url: "https://api.tfl.gov.uk"
+    endpoints:
+      disruptions: "/Road/all/Disruption"
+      road_status: "/Road"
+
+  police:
+    enabled: true
+    poll_interval_seconds: 300
+    base_url: "https://data.police.uk/api"
+    endpoints:
+      crimes: "/crimes-street/all-crime"
+      outcomes: "/outcomes-at-location"

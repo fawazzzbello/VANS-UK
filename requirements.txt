@@ -1,0 +1,35 @@
+# VANS UK Dependencies
+
+# Web framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# Async HTTP client
+httpx==0.28.1
+
+# Redis
+redis[hiredis]==5.2.1
+
+# Database
+psycopg2-binary==2.9.10
+sqlalchemy==2.0.36
+asyncpg==0.30.0
+
+# Task queue
+celery[redis]==5.4.0
+
+# Data validation
+pydantic==2.10.3
+
+# Auth
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.24.0
+pytest-cov==6.0.0
+
+# Linting
+ruff==0.8.4
+mypy==1.13.0
