@@ -1,4 +1,4 @@
-"""Database connection and session management."""
+"""Database connection and session management for Railway PostgreSQL."""
 
 import logging
 import os
@@ -16,21 +16,36 @@ logger = logging.getLogger(__name__)
 
 
 def _build_database_url() -> str:
-    """Build async database URL from environment, handling Railway format."""
+    """
+    Build async database URL from environment.
+
+    Railway provides DATABASE_URL as:
+      postgres://user:pass@host:port/dbname
+    or via individual vars:
+      PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE
+    """
     url = os.environ.get("DATABASE_URL", "")
 
     if not url:
-        # No DATABASE_URL set - use a default for local dev
-        return "postgresql+asyncpg://user:password@localhost:5432/vans_uk"
+        # Try Railway's individual PG variables
+        host = os.environ.get("PGHOST", "")
+        if host:
+            port = os.environ.get("PGPORT", "5432")
+            user = os.environ.get("PGUSER", "postgres")
+            password = os.environ.get("PGPASSWORD", "")
+            database = os.environ.get("PGDATABASE", "railway")
+            url = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}"
+        else:
+            return "postgresql+asyncpg://user:password@localhost:5432/vans_uk"
 
-    # Railway/Heroku use postgres:// which SQLAlchemy doesn't accept
+    # Railway uses postgres:// which asyncpg doesn't accept
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql+asyncpg://", 1)
-    elif url.startswith("postgresql://"):
+    elif url.startswith("postgresql://") and "+asyncpg" not in url:
         url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-    # Railway requires SSL - add sslmode if not already present
-    if "sslmode" not in url:
+    # Railway PostgreSQL requires SSL
+    if "sslmode" not in url and "ssl" not in url:
         separator = "&" if "?" in url else "?"
         url = f"{url}{separator}ssl=require"
 
@@ -39,13 +54,11 @@ def _build_database_url() -> str:
 
 DATABASE_URL = _build_database_url()
 
-_db_available = bool(os.environ.get("DATABASE_URL"))
-
 engine = create_async_engine(
     DATABASE_URL,
     echo=False,
-    pool_size=20,
-    max_overflow=10,
+    pool_size=10,
+    max_overflow=5,
     pool_pre_ping=True,
     pool_recycle=300,
 )
@@ -64,12 +77,7 @@ async def init_db():
             await conn.run_sync(Base.metadata.create_all)
         logger.info("Database tables initialized successfully")
     except Exception as e:
-        logger.warning(
-            "Could not initialize database: %s. "
-            "API will start but database-dependent endpoints will fail. "
-            "Ensure DATABASE_URL is set and the database is reachable.",
-            e,
-        )
+        logger.warning("Could not initialize database: %s", e)
 
 
 @asynccontextmanager

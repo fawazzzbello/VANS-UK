@@ -1,10 +1,12 @@
 """System routes: health, readiness, metrics."""
 
-import os
 from datetime import datetime, timezone
 
-import redis.asyncio as redis
 from fastapi import APIRouter
+from sqlalchemy import func, select, text
+
+from src.models.database import get_session
+from src.models.orm import ViolationORM, AlertLogORM
 
 router = APIRouter()
 
@@ -22,26 +24,12 @@ async def health_check():
 
 @router.get("/ready")
 async def readiness_check():
-    """Readiness check - verifies database and Redis connectivity."""
+    """Readiness check - verifies database connectivity."""
     checks = {}
 
-    # Check Redis
     try:
-        redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
-        r = redis.from_url(redis_url)
-        await r.ping()
-        checks["redis"] = "ok"
-        await r.aclose()
-    except Exception as e:
-        checks["redis"] = f"error: {e}"
-
-    # Check Database
-    try:
-        from src.models.database import get_session
         async with get_session() as session:
-            await session.execute(
-                __import__("sqlalchemy").text("SELECT 1")
-            )
+            await session.execute(text("SELECT 1"))
         checks["database"] = "ok"
     except Exception as e:
         checks["database"] = f"error: {e}"
@@ -57,24 +45,58 @@ async def readiness_check():
 @router.get("/api/v1/metrics")
 async def get_metrics():
     """System metrics for monitoring dashboards."""
-    try:
-        redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
-        r = redis.from_url(redis_url)
-        stream_info = {}
-        for stream in ["anpr_readings_raw", "anpr_readings", "violations", "notifications"]:
-            try:
-                info = await r.xinfo_stream(stream)
-                stream_info[stream] = {
-                    "length": info.get("length", 0),
-                    "groups": info.get("groups", 0),
-                }
-            except redis.ResponseError:
-                stream_info[stream] = {"length": 0, "groups": 0}
-        await r.aclose()
-    except Exception:
-        stream_info = {}
+    metrics = {}
 
-    return {
-        "streams": stream_info,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    }
+    try:
+        async with get_session() as session:
+            # Violation counts
+            total_violations = (
+                await session.execute(select(func.count(ViolationORM.id)))
+            ).scalar() or 0
+
+            pending_violations = (
+                await session.execute(
+                    select(func.count(ViolationORM.id)).where(
+                        ViolationORM.status == "PENDING"
+                    )
+                )
+            ).scalar() or 0
+
+            # Alert stats
+            total_alerts = (
+                await session.execute(select(func.count(AlertLogORM.id)))
+            ).scalar() or 0
+
+            sent_alerts = (
+                await session.execute(
+                    select(func.count(AlertLogORM.id)).where(
+                        AlertLogORM.status == "SENT"
+                    )
+                )
+            ).scalar() or 0
+
+            avg_latency = (
+                await session.execute(
+                    select(func.avg(AlertLogORM.latency_ms)).where(
+                        AlertLogORM.latency_ms.isnot(None)
+                    )
+                )
+            ).scalar()
+
+            metrics = {
+                "violations": {
+                    "total": total_violations,
+                    "pending": pending_violations,
+                },
+                "alerts": {
+                    "total": total_alerts,
+                    "sent": sent_alerts,
+                    "success_rate": round(sent_alerts / total_alerts * 100, 1) if total_alerts > 0 else None,
+                    "avg_latency_ms": round(avg_latency, 1) if avg_latency else None,
+                },
+            }
+    except Exception:
+        metrics = {"error": "Database unavailable"}
+
+    metrics["timestamp"] = datetime.now(timezone.utc).isoformat()
+    return metrics

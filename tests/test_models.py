@@ -1,74 +1,14 @@
-"""Tests for data models and core business logic."""
+"""Tests for data models, core business logic, and pipeline functions."""
 
 from datetime import datetime, timezone
 
 import pytest
 
-from src.models.traffic_event import TrafficEvent
-from src.models.violation import Violation
 from src.models.schemas import (
     ViolationCreate,
     SubscriberCreate,
     VehicleOwner,
 )
-
-
-# ─── Legacy Dataclass Tests ────────────────────────────────
-
-class TestTrafficEvent:
-    def test_to_dict_roundtrip(self):
-        event = TrafficEvent(
-            source="tfl",
-            source_id="tfl-123",
-            event_type="INCIDENT",
-            severity="HIGH",
-            description="Multi-vehicle collision on A40",
-            latitude=51.5074,
-            longitude=-0.1278,
-            road="A40",
-            timestamp=datetime(2026, 1, 15, 10, 30, 0, tzinfo=timezone.utc),
-        )
-        d = event.to_dict()
-        restored = TrafficEvent.from_dict(d)
-        assert restored.source == "tfl"
-        assert restored.source_id == "tfl-123"
-        assert restored.latitude == 51.5074
-        assert restored.road == "A40"
-
-    def test_optional_fields_default_none(self):
-        event = TrafficEvent(
-            source="test",
-            source_id="1",
-            event_type="TEST",
-            severity="LOW",
-            description="",
-            latitude=0,
-            longitude=0,
-            road="",
-            timestamp=datetime.now(timezone.utc),
-        )
-        assert event.observed_speed is None
-        assert event.vehicle_id is None
-
-
-class TestViolation:
-    def test_to_dict_roundtrip(self):
-        violation = Violation(
-            violation_type="SPD",
-            severity="HIGH",
-            vehicle_id="AB12CDE",
-            latitude=51.5,
-            longitude=-0.1,
-            road="M25",
-            description="Speed 85mph in 70mph zone (+15mph)",
-            timestamp=datetime(2026, 1, 15, 10, 30, 0, tzinfo=timezone.utc),
-            evidence_ref="cam-001-20260115",
-        )
-        d = violation.to_dict()
-        restored = Violation.from_dict(d)
-        assert restored.violation_type == "SPD"
-        assert restored.vehicle_id == "AB12CDE"
-        assert restored.road == "M25"
 
 
 # ─── Violation Detection Logic ──────────────────────────────
@@ -247,9 +187,8 @@ class TestNotificationFormatting:
 
 class TestANPRProcessing:
     def test_normalize_reading_valid(self):
-        from src.ingestion.anpr_processor import ANPRProcessor
-        processor = ANPRProcessor.__new__(ANPRProcessor)
-        result = processor._normalize_reading({
+        from src.ingestion.anpr_processor import normalize_reading
+        result = normalize_reading({
             "camera_id": "CAM-M25-J10-N",
             "vehicle_plate": "AB12 CDE",
             "confidence": "0.95",
@@ -264,9 +203,8 @@ class TestANPRProcessing:
         assert result["source"] == "anpr"
 
     def test_normalize_reading_low_confidence(self):
-        from src.ingestion.anpr_processor import ANPRProcessor
-        processor = ANPRProcessor.__new__(ANPRProcessor)
-        result = processor._normalize_reading({
+        from src.ingestion.anpr_processor import normalize_reading
+        result = normalize_reading({
             "camera_id": "CAM-M25-J10-N",
             "vehicle_plate": "AB12 CDE",
             "confidence": "0.50",  # Below threshold
@@ -276,9 +214,8 @@ class TestANPRProcessing:
         assert result is None
 
     def test_normalize_reading_empty_plate(self):
-        from src.ingestion.anpr_processor import ANPRProcessor
-        processor = ANPRProcessor.__new__(ANPRProcessor)
-        result = processor._normalize_reading({
+        from src.ingestion.anpr_processor import normalize_reading
+        result = normalize_reading({
             "camera_id": "CAM-M25-J10-N",
             "vehicle_plate": "",
             "confidence": "0.95",
@@ -286,6 +223,17 @@ class TestANPRProcessing:
             "longitude": "-0.45",
         })
         assert result is None
+
+    def test_generate_reading(self):
+        from src.ingestion.anpr_processor import generate_reading
+        reading = generate_reading()
+        assert "camera_id" in reading
+        assert "vehicle_plate" in reading
+        assert "confidence" in reading
+        assert "observed_speed_mph" in reading
+        assert "latitude" in reading
+        assert "longitude" in reading
+        assert len(reading["vehicle_plate"]) == 7
 
 
 # ─── DVLA Lookup ─────────────────────────────────────────────
@@ -318,8 +266,6 @@ class TestDVLALookup:
 
     def test_check_tax_mot_flags(self):
         """Test that tax/MOT check returns correct boolean flags."""
-        from src.models.schemas import VehicleOwner
-        # Simulating the logic from check_tax_and_mot
         owner = VehicleOwner(
             vehicle_plate="AB12CDE",
             tax_status="Taxed",

@@ -7,9 +7,6 @@ uvicorn[standard]==0.34.0
 # Async HTTP client
 httpx==0.28.1
 
-# Redis
-redis[hiredis]==5.2.1
-
 # Database
 psycopg2-binary==2.9.10
 sqlalchemy==2.0.36

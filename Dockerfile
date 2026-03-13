@@ -17,11 +17,4 @@ ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
 
 # Railway sets PORT dynamically; default to 8000 for local dev
-ENV PORT=8000
-
-# Default: run the API server.
-# Override CMD in Railway/docker-compose for workers:
-#   violation-engine:      python -m src.processing.violation_engine
-#   notification-service:  python -m src.alerting.notification_service
-#   anpr-processor:        python -m src.ingestion.anpr_processor
-CMD uvicorn src.api.main:app --host 0.0.0.0 --port $PORT --workers 4
+CMD uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 4
