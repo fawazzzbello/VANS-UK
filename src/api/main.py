@@ -22,6 +22,7 @@ from fastapi.staticfiles import StaticFiles
 
 from src.api.routes import violations, traffic, subscriptions, system, anpr
 from src.models.database import init_db
+import src.models.orm  # noqa: F401 — ensures all ORM models register with Base.metadata
 
 logger = logging.getLogger(__name__)
 

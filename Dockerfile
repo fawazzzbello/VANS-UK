@@ -16,5 +16,5 @@ ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8000
 
-# Railway injects PORT at runtime; use sh -c so the shell resolves ${PORT:-8000}
-CMD ["sh", "-c", "uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
+# start.py reads PORT from the environment — no shell variable expansion needed
+CMD ["python", "start.py"]
