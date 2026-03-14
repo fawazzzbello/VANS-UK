@@ -16,5 +16,5 @@ ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8000
 
-# Railway sets PORT dynamically; default to 8000 for local dev
-CMD uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 4
+# start.py reads PORT from the environment — no shell variable expansion needed
+CMD ["python", "start.py"]
