@@ -16,5 +16,5 @@ ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8000
 
-# Railway sets PORT dynamically; default to 8000 for local dev
-CMD uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 4
+# Railway injects PORT at runtime; use sh -c so the shell resolves ${PORT:-8000}
+CMD ["sh", "-c", "uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
