@@ -56,3 +56,21 @@ app.include_router(violations.router, prefix="/api/v1", tags=["Violations"])
 app.include_router(traffic.router, prefix="/api/v1", tags=["Traffic"])
 app.include_router(subscriptions.router, prefix="/api/v1", tags=["Subscriptions"])
 app.include_router(anpr.router, prefix="/api/v1", tags=["ANPR"])
+
+
+@app.get("/")
+async def root():
+    """Landing page - confirms VANS UK API is running."""
+    return {
+        "service": "VANS UK",
+        "description": "Vehicle Alert Notification System - Real-Time Driver Violation Alerts for the UK",
+        "version": "1.0.0",
+        "docs": "/api/docs",
+        "health": "/health",
+        "endpoints": {
+            "anpr_submit": "/api/v1/anpr/readings",
+            "violations": "/api/v1/violations",
+            "stats": "/api/v1/violations/stats",
+            "simulate": "/api/v1/anpr/simulate",
+        },
+    }

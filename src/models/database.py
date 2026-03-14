@@ -72,12 +72,26 @@ class Base(DeclarativeBase):
 
 async def init_db():
     """Create all tables. Logs warning and continues if DB is unreachable."""
+    # Log which DB we're connecting to (mask password)
+    masked = DATABASE_URL
+    if "@" in masked:
+        pre_at = masked.split("@")[0]
+        if ":" in pre_at:
+            scheme_user = pre_at.rsplit(":", 1)[0]
+            masked = scheme_user + ":***@" + masked.split("@", 1)[1]
+    logger.info("Connecting to database: %s", masked)
+
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         logger.info("Database tables initialized successfully")
     except Exception as e:
-        logger.warning("Could not initialize database: %s", e)
+        logger.warning(
+            "Could not initialize database: %s. "
+            "API will start but database-dependent endpoints will fail. "
+            "Ensure DATABASE_URL is set and the database is reachable.",
+            e,
+        )
 
 
 @asynccontextmanager
