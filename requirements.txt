@@ -3,6 +3,8 @@
 # Web framework
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
+aiofiles==24.1.0
+websockets==14.1
 
 # Async HTTP client
 httpx==0.28.1
