@@ -833,6 +833,240 @@
 
     footer a { color: var(--accent-cyan); text-decoration: none; }
 
+    /* ── Admin panel ── */
+    .admin-section {
+      margin-bottom: 1.25rem;
+    }
+
+    .admin-section-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+
+    .admin-section-title::before,
+    .admin-section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .admin-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+
+    @media (max-width: 900px) {
+      .admin-grid { grid-template-columns: 1fr; }
+    }
+
+    .vrn-input-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 1rem;
+    }
+
+    .vrn-input {
+      flex: 1;
+      background: rgba(0,200,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      padding: 9px 14px;
+      font-size: 1rem;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .vrn-input:focus { border-color: var(--border-bright); }
+
+    .vrn-vehicle-info {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 1rem;
+    }
+
+    .vrn-info-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 8px 10px;
+      background: rgba(0,200,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .vrn-info-label {
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
+
+    .vrn-info-val {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+    }
+
+    .vrn-info-val.ok { color: var(--accent-green); }
+    .vrn-info-val.warn { color: var(--accent-yellow); }
+    .vrn-info-val.err { color: var(--accent-red); }
+
+    .vrn-summary-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .vrn-summary-chip {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding: 8px 14px;
+      border-radius: 10px;
+      background: rgba(0,200,255,0.04);
+      border: 1px solid var(--border);
+      flex: 1;
+      min-width: 80px;
+    }
+
+    .vrn-summary-chip .chip-val {
+      font-size: 1.3rem;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      color: var(--accent-cyan);
+    }
+
+    .vrn-summary-chip .chip-label {
+      font-size: 0.58rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .vrn-violation-list {
+      max-height: 260px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-bright) transparent;
+    }
+
+    .vrn-viol-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto auto;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 4px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.78rem;
+    }
+
+    .vrn-viol-row:last-child { border-bottom: none; }
+
+    .vrn-viol-date {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .vrn-viol-desc {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .vrn-viol-fine {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--accent-cyan);
+      white-space: nowrap;
+    }
+
+    /* ── Test suite ── */
+    .test-select {
+      background: rgba(0,200,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      font-family: var(--font-mono);
+      width: 100%;
+      outline: none;
+      transition: border-color 0.2s;
+      appearance: none;
+      cursor: pointer;
+    }
+
+    .test-select:focus { border-color: var(--border-bright); }
+    .test-select option { background: #0b0f1a; }
+
+    .test-result-box {
+      padding: 14px;
+      border-radius: 10px;
+      background: rgba(0,255,135,0.04);
+      border: 1px solid rgba(0,255,135,0.2);
+      font-size: 0.78rem;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .test-result-box.failed {
+      background: rgba(255,45,85,0.05);
+      border-color: rgba(255,45,85,0.25);
+    }
+
+    .test-result-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .test-result-label { color: var(--text-muted); flex-shrink: 0; }
+
+    .test-result-val {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--accent-cyan);
+      text-align: right;
+      word-break: break-all;
+    }
+
+    .test-sms-preview {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      color: var(--text-secondary);
+      white-space: pre-wrap;
+      line-height: 1.6;
+      margin-top: 4px;
+    }
+
     /* ── Loading spinner ── */
     .spinner {
       width: 20px;
@@ -877,6 +1111,7 @@
   <div class="nav-actions">
     <button class="btn btn-outline" onclick="loadStats()">↻ Refresh</button>
     <a href="/api/docs" target="_blank"><button class="btn btn-outline">API Docs</button></a>
+    <button class="btn btn-outline" onclick="document.getElementById('admin-panel').scrollIntoView({behavior:'smooth'})">🔍 Admin</button>
     <button class="btn btn-primary" onclick="document.getElementById('sim-section').scrollIntoView({behavior:'smooth'})">⚡ Simulate</button>
   </div>
 </nav>
@@ -1140,6 +1375,128 @@
       <div id="roads-list" style="display:flex;flex-wrap:wrap;gap:8px">
         <div style="color:var(--text-muted);font-size:0.8rem">Loading…</div>
       </div>
+    </div>
+  </div>
+
+
+  <!-- Admin Panel -->
+  <div class="admin-section" id="admin-panel">
+    <div class="admin-section-title">Admin Panel</div>
+    <div class="admin-grid">
+
+      <!-- VRN Lookup -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <div class="card-title-dot"></div>
+            VRN Lookup
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="vrn-input-row">
+            <input
+              class="vrn-input"
+              type="text"
+              id="vrn-input"
+              placeholder="AB12 CDE"
+              maxlength="10"
+              onkeydown="if(event.key==='Enter') lookupVRN()"
+            />
+            <button class="btn btn-primary" onclick="lookupVRN()" id="vrn-btn">Search</button>
+          </div>
+
+          <div id="vrn-result" style="display:none">
+            <!-- Vehicle info chips -->
+            <div class="vrn-summary-bar" id="vrn-summary-bar"></div>
+            <!-- DVLA info grid -->
+            <div class="vrn-vehicle-info" id="vrn-vehicle-info"></div>
+            <!-- Violation history -->
+            <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:8px" id="vrn-viol-header">Violation History</div>
+            <div class="vrn-violation-list" id="vrn-violation-list"></div>
+          </div>
+
+          <div id="vrn-empty" style="display:none;padding:2rem;text-align:center;color:var(--text-muted);font-size:0.82rem">
+            No record found for this plate.
+          </div>
+
+          <div id="vrn-loading" style="display:none" class="loading-overlay">
+            <div class="spinner"></div>
+            <span>Looking up vehicle…</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alert Test Suite -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <div class="card-title-dot" style="background:var(--accent-orange);box-shadow:0 0 6px var(--accent-orange)"></div>
+            Alert Test Suite
+          </div>
+        </div>
+        <div class="card-body sim-panel">
+          <div class="sim-status" id="test-status" style="font-size:0.75rem">
+            <div class="status-dot" style="background:var(--text-muted);box-shadow:none"></div>
+            Ready — fires a real SMS to the test number
+          </div>
+
+          <div class="sim-controls">
+            <div class="sim-control-row">
+              <div class="sim-control-label">Vehicle Plate</div>
+              <input class="sim-input" type="text" id="test-plate" placeholder="AB12 CDE" style="text-transform:uppercase;letter-spacing:0.1em;font-weight:700" />
+            </div>
+            <div class="sim-control-row">
+              <div class="sim-control-label">Violation Type</div>
+              <select class="test-select" id="test-type">
+                <option value="SPD">SPD — Speeding (£100 · 3 pts)</option>
+                <option value="RLR">RLR — Red Light Running (£100 · 3 pts)</option>
+                <option value="ILT">ILT — Illegal Turn (£100 · 3 pts)</option>
+                <option value="BUS">BUS — Bus Lane (£65 · 0 pts)</option>
+                <option value="CON">CON — Congestion Charge (£160 · 0 pts)</option>
+                <option value="INS">INS — No Insurance (£300 · 6 pts)</option>
+                <option value="MOT">MOT — No MOT (£1,000 · 0 pts)</option>
+                <option value="TAX">TAX — No Vehicle Tax (£1,000 · 0 pts)</option>
+                <option value="PHN">PHN — Phone Use (£200 · 6 pts)</option>
+                <option value="SBT">SBT — Seatbelt (£500 · 0 pts)</option>
+              </select>
+            </div>
+            <div class="sim-control-row">
+              <div class="sim-control-label">Test Phone (optional override)</div>
+              <input class="sim-input" type="tel" id="test-phone" placeholder="+44… (uses TEST_SMS_RECIPIENT if blank)" />
+            </div>
+          </div>
+
+          <button class="btn btn-primary" style="width:100%;font-size:0.82rem" onclick="sendTestAlert()" id="test-btn">
+            📱 Send Test Alert
+          </button>
+
+          <div id="test-result-box" style="display:none" class="test-result-box">
+            <div class="test-result-row">
+              <span class="test-result-label">Reference</span>
+              <span class="test-result-val" id="tr-ref">—</span>
+            </div>
+            <div class="test-result-row">
+              <span class="test-result-label">SMS Status</span>
+              <span class="test-result-val" id="tr-status">—</span>
+            </div>
+            <div class="test-result-row">
+              <span class="test-result-label">Sent To</span>
+              <span class="test-result-val" id="tr-phone">—</span>
+            </div>
+            <div class="test-result-row">
+              <span class="test-result-label">Latency</span>
+              <span class="test-result-val" id="tr-latency">—</span>
+            </div>
+            <div class="test-result-row" id="tr-error-row" style="display:none">
+              <span class="test-result-label">Error</span>
+              <span class="test-result-val" id="tr-error" style="color:var(--accent-red)">—</span>
+            </div>
+            <div class="sim-control-label" style="margin-top:4px">SMS Preview</div>
+            <div class="test-sms-preview" id="tr-preview">—</div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -1544,6 +1901,199 @@ function stopSimulation() {
   document.getElementById('sim-btn').disabled = false;
   document.getElementById('sim-btn').textContent = '⚡ Start Simulation';
   document.getElementById('sim-btn').style.opacity = '1';
+}
+
+/* ── VRN Lookup ── */
+async function lookupVRN() {
+  const raw = document.getElementById('vrn-input').value.trim();
+  const plate = raw.replace(/\s+/g, '').toUpperCase();
+  if (!plate || plate.length < 2) {
+    toast('Invalid Plate', 'Enter a valid UK registration number', '⚠️');
+    return;
+  }
+
+  const btn = document.getElementById('vrn-btn');
+  btn.disabled = true;
+  btn.textContent = '…';
+  document.getElementById('vrn-result').style.display = 'none';
+  document.getElementById('vrn-empty').style.display = 'none';
+  document.getElementById('vrn-loading').style.display = 'flex';
+
+  try {
+    const data = await apiFetch(`/api/v1/admin/vrn/${encodeURIComponent(plate)}`);
+
+    document.getElementById('vrn-loading').style.display = 'none';
+
+    const dvla = data.dvla_info || {};
+    const summary = data.summary || {};
+    const violations = data.violations || [];
+
+    // Summary chips
+    const totalFines = summary.total_fines_pence || 0;
+    const outstanding = summary.outstanding_fines_pence || 0;
+    document.getElementById('vrn-summary-bar').innerHTML = `
+      <div class="vrn-summary-chip">
+        <span class="chip-val">${summary.total_violations || 0}</span>
+        <span class="chip-label">Violations</span>
+      </div>
+      <div class="vrn-summary-chip">
+        <span class="chip-val">${fmtFine(totalFines)}</span>
+        <span class="chip-label">Total Fines</span>
+      </div>
+      <div class="vrn-summary-chip">
+        <span class="chip-val" style="color:${outstanding > 0 ? 'var(--accent-red)' : 'var(--accent-green)'}">${fmtFine(outstanding)}</span>
+        <span class="chip-label">Outstanding</span>
+      </div>
+      <div class="vrn-summary-chip">
+        <span class="chip-val">${summary.notifications_sent || 0}</span>
+        <span class="chip-label">SMS Sent</span>
+      </div>`;
+
+    // DVLA info grid
+    const taxOk = dvla.tax_status === 'Taxed';
+    const motOk = dvla.mot_status === 'Valid';
+    const insOk = dvla.insurance_status === 'Insured';
+    document.getElementById('vrn-vehicle-info').innerHTML = `
+      <div class="vrn-info-item">
+        <span class="vrn-info-label">Make / Model</span>
+        <span class="vrn-info-val">${dvla.make || '—'} ${dvla.model || ''}</span>
+      </div>
+      <div class="vrn-info-item">
+        <span class="vrn-info-label">Colour / Year</span>
+        <span class="vrn-info-val">${dvla.colour || '—'} ${dvla.year ? '/ ' + dvla.year : ''}</span>
+      </div>
+      <div class="vrn-info-item">
+        <span class="vrn-info-label">Vehicle Tax</span>
+        <span class="vrn-info-val ${dvla.tax_status ? (taxOk ? 'ok' : 'err') : ''}">${dvla.tax_status || 'Unknown'}${dvla.tax_due_date ? ' · ' + dvla.tax_due_date : ''}</span>
+      </div>
+      <div class="vrn-info-item">
+        <span class="vrn-info-label">MOT Status</span>
+        <span class="vrn-info-val ${dvla.mot_status ? (motOk ? 'ok' : 'err') : ''}">${dvla.mot_status || 'Unknown'}${dvla.mot_expiry_date ? ' · ' + dvla.mot_expiry_date : ''}</span>
+      </div>
+      <div class="vrn-info-item">
+        <span class="vrn-info-label">Insurance</span>
+        <span class="vrn-info-val ${dvla.insurance_status ? (insOk ? 'ok' : 'err') : ''}">${dvla.insurance_status || 'Unknown'}</span>
+      </div>
+      <div class="vrn-info-item">
+        <span class="vrn-info-label">Fuel Type</span>
+        <span class="vrn-info-val">${dvla.fuel_type || '—'}</span>
+      </div>`;
+
+    // Violation history
+    const vHeader = document.getElementById('vrn-viol-header');
+    const vList = document.getElementById('vrn-violation-list');
+    vHeader.textContent = `Violation History (${violations.length})`;
+
+    if (!violations.length) {
+      vList.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text-muted);font-size:0.78rem">No violations on record for this plate</div>';
+    } else {
+      vList.innerHTML = violations.map(v => `
+        <div class="vrn-viol-row">
+          <span class="feed-type-badge badge-${v.violation_type}">${v.violation_type}</span>
+          <span class="vrn-viol-desc">${v.description || v.road || '—'}</span>
+          <span class="vrn-viol-fine">${fmtFine(v.fine_amount_pence)}</span>
+          <span class="vrn-viol-date">${fmtDate(v.timestamp)}</span>
+        </div>`).join('');
+    }
+
+    document.getElementById('vrn-result').style.display = 'block';
+
+    // Pre-fill the test suite plate
+    document.getElementById('test-plate').value = plate;
+
+  } catch (e) {
+    document.getElementById('vrn-loading').style.display = 'none';
+    if (e.message.includes('404')) {
+      document.getElementById('vrn-empty').style.display = 'block';
+    } else {
+      toast('Lookup Failed', e.message, '❌');
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Search';
+  }
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'2-digit'});
+}
+
+/* ── Test Alert Suite ── */
+async function sendTestAlert() {
+  const plate = document.getElementById('test-plate').value.replace(/\s+/g,'').toUpperCase();
+  const vtype = document.getElementById('test-type').value;
+  const phone = document.getElementById('test-phone').value.trim() || undefined;
+
+  if (!plate || plate.length < 2) {
+    toast('Invalid Plate', 'Enter a vehicle plate in the test suite', '⚠️');
+    return;
+  }
+
+  const btn = document.getElementById('test-btn');
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  document.getElementById('test-result-box').style.display = 'none';
+
+  const statusEl = document.getElementById('test-status');
+  statusEl.className = 'sim-status running';
+  statusEl.innerHTML = '<div class="status-dot"></div> Sending test SMS…';
+
+  try {
+    const body = { vehicle_plate: plate, violation_type: vtype };
+    if (phone) body.test_phone = phone;
+
+    const resp = await fetch(API + '/api/v1/admin/test/alert', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+
+    const data = await resp.json();
+
+    if (!resp.ok) {
+      throw new Error(data.detail || `HTTP ${resp.status}`);
+    }
+
+    const box = document.getElementById('test-result-box');
+    box.className = 'test-result-box' + (data.sms_sent ? '' : ' failed');
+    box.style.display = 'flex';
+
+    document.getElementById('tr-ref').textContent = data.test_reference || '—';
+    document.getElementById('tr-status').textContent = data.sms_sent ? '✅ Sent' : '❌ Failed';
+    document.getElementById('tr-status').style.color = data.sms_sent ? 'var(--accent-green)' : 'var(--accent-red)';
+    document.getElementById('tr-phone').textContent = data.test_phone || '—';
+    document.getElementById('tr-latency').textContent = data.latency_ms ? data.latency_ms + 'ms' : '—';
+    document.getElementById('tr-preview').textContent = data.sms_message || '—';
+
+    const errRow = document.getElementById('tr-error-row');
+    if (data.error) {
+      errRow.style.display = 'flex';
+      document.getElementById('tr-error').textContent = data.error;
+    } else {
+      errRow.style.display = 'none';
+    }
+
+    statusEl.className = 'sim-status';
+    statusEl.innerHTML = data.sms_sent
+      ? '<div class="status-dot" style="background:var(--accent-green);box-shadow:0 0 8px var(--accent-green)"></div> SMS sent successfully'
+      : '<div class="status-dot red"></div> SMS failed — check Twilio config';
+
+    if (data.sms_sent) {
+      toast('Test SMS Sent', `${vtype} alert → ${data.test_phone}`, '📱');
+    } else {
+      toast('SMS Failed', data.error || 'Check Twilio credentials', '❌');
+    }
+
+  } catch (e) {
+    statusEl.className = 'sim-status';
+    statusEl.innerHTML = '<div class="status-dot red"></div> Error — ' + e.message;
+    toast('Test Failed', e.message, '❌');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📱 Send Test Alert';
+  }
 }
 
 /* ── Init ── */
