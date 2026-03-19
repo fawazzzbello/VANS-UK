@@ -20,7 +20,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from src.api.routes import violations, traffic, subscriptions, system, anpr
+from src.api.routes import violations, traffic, subscriptions, system, anpr, admin
 from src.models.database import init_db
 import src.models.orm  # noqa: F401 — ensures all ORM models register with Base.metadata
 
@@ -69,6 +69,7 @@ app.include_router(violations.router, prefix="/api/v1", tags=["Violations"])
 app.include_router(traffic.router, prefix="/api/v1", tags=["Traffic"])
 app.include_router(subscriptions.router, prefix="/api/v1", tags=["Subscriptions"])
 app.include_router(anpr.router, prefix="/api/v1", tags=["ANPR"])
+app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 
 # Serve static assets (CSS, JS, images) if the static directory exists
 if STATIC_DIR.exists():
