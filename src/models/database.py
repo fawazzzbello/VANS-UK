@@ -108,23 +108,33 @@ async def init_db():
     Logs a warning and continues if the DB is unreachable so the API
     still starts and the /health endpoint can respond.
     """
-    masked = DATABASE_URL
-    if "@" in masked:
-        pre = masked.split("@")[0]
-        if ":" in pre:
-            masked = pre.rsplit(":", 1)[0] + ":***@" + masked.split("@", 1)[1]
-    logger.info("Connecting to database: %s", masked)
+    # Log the host we're connecting to (never log the password)
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(DATABASE_URL)
+        db_host = f"{parsed.hostname}:{parsed.port or 5432}/{parsed.path.lstrip('/')}"
+    except Exception:
+        db_host = "(unable to parse)"
+
+    logger.info("Database host: %s", db_host)
+
+    if "localhost" in DATABASE_URL and not os.environ.get("DATABASE_URL") and not os.environ.get("PGHOST"):
+        logger.warning(
+            "DATABASE_URL and PGHOST are not set — using localhost fallback. "
+            "On Railway: add a Postgres plugin so DATABASE_URL is injected automatically."
+        )
 
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        logger.info("Database tables initialized successfully")
+        logger.info("Database tables initialised at %s", db_host)
     except Exception as e:
         logger.warning(
-            "Database unreachable: %s. "
-            "API will start but DB-dependent endpoints will fail. "
-            "Ensure DATABASE_URL is set correctly in Railway.",
-            e,
+            "Could not reach database at %s: %s — "
+            "API will start but all DB endpoints will fail with 500. "
+            "Fix: add a Postgres plugin in your Railway project.",
+            db_host,
+            type(e).__name__,
         )
 
 
