@@ -23,6 +23,8 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.api.routes import violations, traffic, subscriptions, system, anpr, admin
+from src.api.routes.anpr import process_and_notify
+from src.ingestion.anpr_processor import generate_reading
 from src.models.database import init_db
 import src.models.orm  # noqa: F401 — ensures all ORM models register with Base.metadata
 
@@ -32,10 +34,33 @@ logger = logging.getLogger(__name__)
 STATIC_DIR = Path(__file__).parent.parent.parent / "static"
 
 
+async def _perpetual_anpr():
+    """
+    Background task: continuously generate and process ANPR readings.
+
+    Runs at ~2 readings/second forever so the dashboard shows live
+    violations without any manual simulation trigger.
+    Violations are broadcast to all connected WebSocket clients.
+    """
+    # Brief delay so the DB is fully initialised before the first read
+    await asyncio.sleep(3)
+    logger.info("Perpetual ANPR background task started (2 reads/sec)")
+    while True:
+        raw = generate_reading()
+        try:
+            result = await process_and_notify(raw)
+            for v in result.get("violations", []):
+                await manager.broadcast({"event": "violation", "data": v})
+        except Exception:
+            logger.exception("Background ANPR task error")
+        await asyncio.sleep(0.5)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup and shutdown."""
     await init_db()
+    asyncio.create_task(_perpetual_anpr())
     yield
 
 

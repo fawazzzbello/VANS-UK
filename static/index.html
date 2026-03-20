@@ -1069,6 +1069,66 @@
       margin-top: 4px;
     }
 
+    /* ── Captures collage ── */
+    .captures-collage {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+    }
+
+    .capture-thumb {
+      position: relative;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.15s;
+      background: #0a0d14;
+    }
+
+    .capture-thumb:hover {
+      border-color: var(--border-bright);
+      transform: scale(1.02);
+    }
+
+    .capture-thumb img {
+      width: 100%;
+      display: block;
+    }
+
+    .capture-thumb-badge {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 0.6rem;
+      font-family: monospace;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+    }
+
+    .capture-thumb-badge.violation {
+      background: rgba(255,45,85,0.85);
+      color: #fff;
+    }
+
+    .capture-thumb-badge.clear {
+      background: rgba(0,255,135,0.2);
+      color: #00ff87;
+      border: 1px solid rgba(0,255,135,0.4);
+    }
+
+    .capture-thumb-label {
+      padding: 4px 8px;
+      font-size: 0.65rem;
+      font-family: monospace;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      background: rgba(0,0,0,0.5);
+    }
+
     /* ── Footage & Camera suite ── */
     .footage-section {
       margin-bottom: 1.25rem;
@@ -1626,50 +1686,76 @@
 
 
   <!-- Footage & Camera Monitoring -->
+  <!-- Lightbox modal -->
+  <div id="lightbox" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.92);backdrop-filter:blur(6px);align-items:center;justify-content:center;flex-direction:column;gap:12px" onclick="closeLightbox()">
+    <div style="position:relative;max-width:92vw;max-height:80vh" onclick="event.stopPropagation()">
+      <img id="lightbox-img" src="" alt="ANPR Capture"
+           style="width:100%;max-height:75vh;border-radius:8px;border:1px solid rgba(0,200,255,0.3);display:block"/>
+      <div id="lightbox-meta" style="padding:10px 4px;font-size:0.75rem;font-family:monospace;color:#8ab4c8;display:flex;gap:20px;flex-wrap:wrap"></div>
+    </div>
+    <button onclick="closeLightbox()" style="background:rgba(0,200,255,0.1);border:1px solid rgba(0,200,255,0.3);color:#00c8ff;padding:6px 20px;border-radius:6px;cursor:pointer;font-size:0.8rem">✕ Close</button>
+  </div>
+
   <div class="footage-section" id="footage-panel">
     <div class="admin-section-title">Footage &amp; Camera Monitoring</div>
+
+    <!-- Live Captures Collage (full width) -->
+    <div class="card" style="margin-bottom:1.25rem">
+      <div class="card-header">
+        <div class="card-title">
+          <div class="card-title-dot" style="background:var(--accent-green);box-shadow:0 0 6px var(--accent-green);animation:pulse 1.5s infinite"></div>
+          Live ANPR Captures
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="font-size:0.68rem;color:var(--accent-green);display:flex;align-items:center;gap:4px">
+            <div class="status-dot" style="background:var(--accent-green);box-shadow:0 0 6px var(--accent-green)"></div> Auto-refreshing
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div id="captures-loading" class="loading-overlay" style="display:none">
+          <div class="spinner"></div><span>Loading captures…</span>
+        </div>
+        <div id="captures-empty" style="display:none;padding:2rem;text-align:center;color:var(--text-muted);font-size:0.82rem">
+          No captures yet — violations are detected automatically.
+        </div>
+        <div id="captures-collage" class="captures-collage"></div>
+      </div>
+    </div>
+
     <div class="footage-grid">
 
-      <!-- Camera Status Grid -->
+      <!-- Camera Status + Live Feed -->
       <div class="card">
         <div class="card-header">
           <div class="card-title">
-            <div class="card-title-dot" style="background:var(--accent-green);box-shadow:0 0 6px var(--accent-green)"></div>
+            <div class="card-title-dot" style="background:#00c8ff;box-shadow:0 0 6px #00c8ff"></div>
             ANPR Camera Network
           </div>
           <button class="btn btn-outline" style="font-size:0.72rem;padding:4px 10px" onclick="loadCameras()">Refresh</button>
         </div>
         <div class="card-body">
           <div id="camera-grid-loading" class="loading-overlay" style="display:none">
-            <div class="spinner"></div>
-            <span>Loading cameras…</span>
+            <div class="spinner"></div><span>Loading cameras…</span>
           </div>
           <div id="camera-grid-empty" style="display:none;padding:2rem;text-align:center;color:var(--text-muted);font-size:0.82rem">
-            No camera data — run a simulation to generate ANPR readings.
+            No camera data yet — violations generate automatically.
           </div>
           <div id="camera-grid" class="camera-grid"></div>
 
-          <!-- Live Feed Panel (shown when a camera is selected) -->
+          <!-- Live feed table (shown when a camera is selected) -->
           <div id="camera-feed-panel" style="display:none;margin-top:14px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
               <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted)">
                 Live Feed — <span id="feed-camera-id" style="color:var(--accent-cyan);font-family:var(--font-mono)"></span>
               </div>
               <div style="display:flex;align-items:center;gap:6px;font-size:0.68rem;color:var(--accent-green)">
-                <div class="status-dot" style="background:var(--accent-green);box-shadow:0 0 6px var(--accent-green);animation:pulse 2s infinite"></div>
-                Live
+                <div class="status-dot" style="background:var(--accent-green);box-shadow:0 0 6px var(--accent-green)"></div> Live
               </div>
             </div>
             <div class="feed-scroll">
               <table class="feed-table">
-                <thead>
-                  <tr>
-                    <th>Plate</th>
-                    <th>Speed</th>
-                    <th>Conf%</th>
-                    <th>Time</th>
-                  </tr>
-                </thead>
+                <thead><tr><th>Plate</th><th>Speed</th><th>Conf%</th><th>Capture</th><th>Time</th></tr></thead>
                 <tbody id="feed-table-body"></tbody>
               </table>
             </div>
@@ -2152,7 +2238,7 @@ async function loadViolations() {
     const tbody = document.getElementById('violations-tbody');
 
     if (!data.items || !data.items.length) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">No violations yet — run a simulation</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">No violations yet — detection starts automatically</td></tr>';
       return;
     }
 
@@ -2186,12 +2272,12 @@ async function pollFeed() {
         <div class="feed-empty">
           <span style="font-size:1.8rem">📡</span>
           <span>No violations detected</span>
-          <span style="font-size:0.7rem;margin-top:4px">Run a simulation to see live data</span>
+          <span style="font-size:0.7rem;margin-top:4px">Violations are detected automatically — data arriving shortly</span>
         </div>`;
       return;
     }
 
-    // Check for new violations to show toast
+    // Check for new violations to show toast + refresh captures
     const newestId = items[0]?.id;
     if (lastViolationId && newestId && newestId > lastViolationId) {
       const v = items[0];
@@ -2200,6 +2286,7 @@ async function pollFeed() {
         `${v.vehicle_plate} · ${fmtFine(v.fine_amount_pence)} · ${v.road || 'Unknown road'}`,
         '🚔'
       );
+      loadCaptures();  // refresh captures collage immediately on new violation
     }
     if (newestId) lastViolationId = newestId;
 
@@ -2479,7 +2566,90 @@ async function sendTestAlert() {
 /* ── Camera & Footage Suite ── */
 let selectedCameraId = null;
 let cameraFeedInterval = null;
+let capturesInterval = null;
 
+function snapshotUrl(c) {
+  const p = new URLSearchParams({
+    plate: c.plate || c.vehicle_plate || '',
+    camera_id: c.camera_id || '',
+    road: c.road || '',
+    direction: c.direction || 'N',
+    ts: c.timestamp || '',
+    vtype: c.violation_type || '',
+  });
+  if (c.speed != null) p.set('speed', c.speed);
+  if (c.limit != null) p.set('limit', c.limit);
+  if (c.confidence != null) p.set('confidence', c.confidence);
+  return `/api/v1/admin/cameras/snapshot?${p}`;
+}
+
+function openLightbox(src, meta) {
+  const lb = document.getElementById('lightbox');
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox-meta').innerHTML = meta || '';
+  lb.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
+/* ── Captures collage ── */
+async function loadCaptures() {
+  const collage = document.getElementById('captures-collage');
+  const loading = document.getElementById('captures-loading');
+  const empty = document.getElementById('captures-empty');
+
+  try {
+    const data = await apiFetch('/api/v1/admin/captures?limit=16');
+    if (!data.captures || data.captures.length === 0) {
+      empty.style.display = 'block';
+      collage.innerHTML = '';
+      return;
+    }
+    empty.style.display = 'none';
+
+    collage.innerHTML = '';
+    data.captures.forEach(c => {
+      const imgSrc = snapshotUrl(c);
+      const isViolation = !!c.violation_type;
+      const badge = isViolation
+        ? `<span class="capture-thumb-badge violation">⚠ ${c.violation_type}</span>`
+        : `<span class="capture-thumb-badge clear">✓ CLEAR</span>`;
+      const speedStr = c.speed != null ? `${Math.round(c.speed)} mph` : '—';
+      const meta = `
+        <span style="color:#00c8ff">${c.plate}</span>
+        <span>${c.camera_id}</span>
+        <span>${speedStr}</span>
+        <span>${c.road}</span>
+      `;
+      const metaLightbox = [
+        `<span>Plate: <b style="color:#00c8ff">${c.plate}</b></span>`,
+        `<span>Camera: ${c.camera_id}</span>`,
+        `<span>Road: ${c.road}</span>`,
+        `<span>Speed: ${speedStr}</span>`,
+        c.violation_type ? `<span style="color:#ff2d55">Violation: ${c.violation_type}</span>` : '',
+        `<span>${fmtDate(c.timestamp)}</span>`,
+      ].filter(Boolean).join('&nbsp;&nbsp;|&nbsp;&nbsp;');
+
+      const thumb = document.createElement('div');
+      thumb.className = 'capture-thumb';
+      thumb.innerHTML = `
+        ${badge}
+        <img src="${imgSrc}" alt="ANPR ${c.plate}" loading="lazy"/>
+        <div class="capture-thumb-label">${meta}</div>
+      `;
+      thumb.onclick = () => openLightbox(imgSrc, metaLightbox);
+      collage.appendChild(thumb);
+    });
+  } catch (_) { /* silently ignore poll errors */ }
+}
+
+/* ── Camera network ── */
 async function loadCameras() {
   const grid = document.getElementById('camera-grid');
   const loading = document.getElementById('camera-grid-loading');
@@ -2501,24 +2671,39 @@ async function loadCameras() {
 
     data.cameras.forEach(cam => {
       const statusClass = cam.status === 'ACTIVE' ? 'active' : cam.status === 'IDLE' ? 'idle' : 'offline';
+      // Build a snapshot URL for the latest read from this camera
+      const thumbSrc = snapshotUrl({
+        plate: cam.last_plate || '??',
+        camera_id: cam.camera_id,
+        road: cam.road || '',
+        direction: 'N',
+        timestamp: cam.last_seen || '',
+        speed: cam.last_speed_mph,
+        limit: null,
+        violation_type: '',
+        confidence: null,
+      });
+
       const card = document.createElement('div');
       card.className = 'camera-card' + (cam.camera_id === selectedCameraId ? ' selected' : '');
       card.dataset.cameraId = cam.camera_id;
       card.innerHTML = `
         <div class="camera-status-dot ${statusClass}"></div>
+        <img src="${thumbSrc}" alt="${cam.camera_id}" style="width:100%;border-radius:4px;margin-bottom:6px;display:block"
+             onclick="event.stopPropagation();openLightbox('${thumbSrc}','Camera: ${cam.camera_id} | Road: ${cam.road || ''} | Last plate: ${cam.last_plate || ''}')"/>
         <div class="camera-card-id">${cam.camera_id}</div>
         <div class="camera-card-loc">${cam.location}</div>
-        <div class="camera-card-plate">${cam.last_plate || '—'}</div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px">
+          <span class="camera-card-plate">${cam.last_plate || '—'}</span>
+          <span style="font-size:0.6rem;color:var(--text-muted)">${cam.total_readings} reads</span>
+        </div>
         <div class="camera-card-time">${cam.last_seen ? fmtDate(cam.last_seen) : '—'}</div>
       `;
       card.onclick = () => selectCamera(cam.camera_id);
       grid.appendChild(card);
     });
 
-    // Re-select previously selected camera
-    if (selectedCameraId) {
-      openCameraFeed(selectedCameraId);
-    }
+    if (selectedCameraId) openCameraFeed(selectedCameraId);
   } catch (e) {
     loading.style.display = 'none';
     empty.style.display = 'block';
@@ -2528,12 +2713,9 @@ async function loadCameras() {
 
 function selectCamera(cameraId) {
   selectedCameraId = cameraId;
-
-  // Update selected state on cards
   document.querySelectorAll('.camera-card').forEach(c => {
     c.classList.toggle('selected', c.dataset.cameraId === cameraId);
   });
-
   openCameraFeed(cameraId);
 }
 
@@ -2543,32 +2725,44 @@ async function openCameraFeed(cameraId) {
   document.getElementById('feed-camera-id').textContent = cameraId;
   panel.style.display = 'block';
 
-  // Clear existing poll
   if (cameraFeedInterval) clearInterval(cameraFeedInterval);
 
   const refresh = async () => {
     try {
-      const data = await apiFetch(`/api/v1/admin/cameras/${encodeURIComponent(cameraId)}/feed?limit=20`);
+      const data = await apiFetch(`/api/v1/admin/cameras/${encodeURIComponent(cameraId)}/feed?limit=15`);
       tbody.innerHTML = '';
       (data.readings || []).forEach(r => {
-        const tr = document.createElement('tr');
         const speed = r.observed_speed_mph;
         const speedClass = speed && speed > 80 ? 'speed-col over' : 'speed-col';
+        const thumbSrc = snapshotUrl({
+          plate: r.vehicle_plate, camera_id: cameraId,
+          road: data.location || '', direction: r.direction || 'N',
+          timestamp: r.timestamp, speed: speed, limit: null,
+          violation_type: '', confidence: r.confidence,
+        });
+        const tr = document.createElement('tr');
         tr.innerHTML = `
           <td class="plate-col">${r.vehicle_plate}</td>
           <td class="${speedClass}">${speed ? speed.toFixed(0) + ' mph' : '—'}</td>
           <td>${r.confidence ? (r.confidence * 100).toFixed(0) + '%' : '—'}</td>
+          <td>
+            <img src="${thumbSrc}" alt="${r.vehicle_plate}"
+                 style="height:32px;border-radius:3px;cursor:pointer;border:1px solid rgba(0,200,255,0.2)"
+                 onclick="openLightbox('${thumbSrc}','${r.vehicle_plate} | ${speed ? speed.toFixed(0) + ' mph' : ''} | ${fmtDate(r.timestamp)}')"
+                 loading="lazy"/>
+          </td>
           <td style="font-size:0.65rem;color:var(--text-muted)">${fmtDate(r.timestamp)}</td>
         `;
         tbody.appendChild(tr);
       });
-    } catch (_) { /* silently ignore feed poll errors */ }
+    } catch (_) { /* ignore */ }
   };
 
   await refresh();
-  cameraFeedInterval = setInterval(refresh, 5000);
+  cameraFeedInterval = setInterval(refresh, 4000);
 }
 
+/* ── Violation Evidence Viewer ── */
 async function loadFootage() {
   const ref = document.getElementById('footage-ref-input').value.trim();
   if (!ref) return;
@@ -2591,15 +2785,23 @@ async function loadFootage() {
     const v = data.violation;
     const ev = data.evidence;
 
-    // Evidence image
+    // Generate ANPR frame as evidence image (falls back to stored URL if available)
     const imgArea = document.getElementById('footage-image-area');
-    if (ev.has_image && ev.image_url) {
-      imgArea.innerHTML = `<img src="${ev.image_url}" alt="Evidence photo" onerror="this.parentElement.innerHTML='<div class=evidence-image-placeholder><div class=evidence-image-placeholder-icon>⚠️</div><div>Image unavailable</div></div>'" />`;
-    } else {
-      imgArea.innerHTML = `<div class="evidence-image-placeholder"><div class="evidence-image-placeholder-icon">📷</div><div>No evidence image captured</div>${ev.camera_id ? '<div style="font-size:0.65rem;margin-top:4px">Camera: ' + ev.camera_id + '</div>' : ''}</div>`;
-    }
+    const frameSrc = ev.has_image && ev.image_url
+      ? ev.image_url
+      : snapshotUrl({
+          plate: v.vehicle_plate, camera_id: v.camera_id || '',
+          road: v.road || '', direction: 'N',
+          timestamp: v.timestamp, speed: v.observed_speed,
+          limit: v.speed_limit, violation_type: v.violation_type,
+          confidence: null,
+        });
 
-    // Meta fields
+    imgArea.innerHTML = `
+      <img src="${frameSrc}" alt="Evidence frame" style="width:100%;height:100%;object-fit:contain;cursor:zoom-in"
+           onclick="openLightbox('${frameSrc}','${v.vehicle_plate} | ${v.violation_type} | ${v.road || ''} | ${fmtDate(v.timestamp)}')" />
+    `;
+
     document.getElementById('fv-plate').textContent = v.vehicle_plate || '—';
     document.getElementById('fv-type').textContent = v.violation_type || '—';
     document.getElementById('fv-camera').textContent = v.camera_id || 'Unknown';
@@ -2611,7 +2813,6 @@ async function loadFootage() {
       ? `£${(v.fine_amount_pence / 100).toFixed(2)}`
       : '—';
 
-    // Related ANPR readings
     const anprSection = document.getElementById('footage-anpr-section');
     const anprList = document.getElementById('footage-anpr-list');
     if (data.related_anpr_readings && data.related_anpr_readings.length > 0) {
@@ -2619,9 +2820,18 @@ async function loadFootage() {
       data.related_anpr_readings.forEach(r => {
         const row = document.createElement('div');
         row.className = 'evidence-anpr-row';
+        const rSrc = snapshotUrl({
+          plate: r.vehicle_plate, camera_id: ev.camera_id || '',
+          road: v.road || '', direction: 'N', timestamp: r.timestamp,
+          speed: r.observed_speed_mph, limit: null,
+          violation_type: r.vehicle_plate === v.vehicle_plate ? v.violation_type : '',
+          confidence: r.confidence,
+        });
         row.innerHTML = `
-          <span class="evidence-anpr-plate">${r.vehicle_plate}</span>
+          <span class="evidence-anpr-plate" style="cursor:pointer" onclick="openLightbox('${rSrc}','')">${r.vehicle_plate}</span>
           <span style="color:var(--accent-cyan)">${r.observed_speed_mph ? r.observed_speed_mph.toFixed(0) + ' mph' : '—'}</span>
+          <img src="${rSrc}" alt="${r.vehicle_plate}" style="height:28px;border-radius:3px;cursor:pointer;border:1px solid rgba(0,200,255,0.15)"
+               onclick="openLightbox('${rSrc}','${r.vehicle_plate} | ${fmtDate(r.timestamp)}')" loading="lazy"/>
           <span class="evidence-anpr-time">${fmtDate(r.timestamp)}</span>
         `;
         anprList.appendChild(row);
@@ -2634,13 +2844,10 @@ async function loadFootage() {
     result.style.display = 'block';
   } catch (e) {
     loading.style.display = 'none';
-    if (e.message && e.message.includes('404')) {
-      empty.style.display = 'block';
-      empty.textContent = 'No violation found for that reference.';
-    } else {
-      empty.style.display = 'block';
-      empty.textContent = 'Error: ' + e.message;
-    }
+    empty.style.display = e.message.includes('404') ? 'block' : 'block';
+    empty.textContent = e.message.includes('404')
+      ? 'No violation found for that reference.'
+      : 'Error: ' + e.message;
   } finally {
     btn.disabled = false;
     btn.textContent = 'Inspect';
@@ -2650,12 +2857,13 @@ async function loadFootage() {
 /* ── Init ── */
 async function init() {
   await checkHealth();
-  await Promise.all([loadStats(), loadViolations(), pollFeed(), loadCameras()]);
+  await Promise.all([loadStats(), loadViolations(), pollFeed(), loadCameras(), loadCaptures()]);
 
-  // Poll intervals
   feedInterval = setInterval(pollFeed, 3000);
   statsInterval = setInterval(loadStats, 15000);
   healthInterval = setInterval(checkHealth, 10000);
+  capturesInterval = setInterval(loadCaptures, 6000);
+  setInterval(loadCameras, 30000);
 }
 
 init();

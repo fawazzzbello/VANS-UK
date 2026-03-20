@@ -15,7 +15,8 @@ import time
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
@@ -451,3 +452,225 @@ async def violation_footage(violation_ref: str) -> dict:
                 for a in alerts
             ],
         }
+
+
+# ── ANPR Snapshot (SVG camera frame) ─────────────────────────────────────────
+
+def _escape(s: str) -> str:
+    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+
+def _violation_colour(vtype: str) -> str:
+    return "#ff2d55" if vtype and vtype.upper() != "NONE" else "#00ff87"
+
+
+def _speed_colour(speed: float | None, limit: int | None) -> str:
+    if speed is None or limit is None:
+        return "#e8f4fd"
+    return "#ff2d55" if speed > limit else "#00ff87"
+
+
+def _build_anpr_svg(
+    plate: str,
+    speed: float | None,
+    limit: int | None,
+    camera_id: str,
+    road: str,
+    ts: str,
+    vtype: str,
+    direction: str,
+    confidence: float | None,
+) -> str:
+    """Generate a realistic ANPR camera capture frame as SVG."""
+    W, H = 560, 320
+    spd_col = _speed_colour(speed, limit)
+    viol_col = _violation_colour(vtype)
+    speed_str = f"{int(speed)} mph" if speed is not None else "— mph"
+    limit_str = f"{limit} mph" if limit is not None else "?"
+    over = speed is not None and limit is not None and speed > limit
+    conf_str = f"{int((confidence or 0) * 100)}%"
+
+    # Format timestamp
+    try:
+        from datetime import datetime, timezone as tz
+        dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        ts_display = dt.strftime("%d/%m/%Y  %H:%M:%S UTC")
+    except Exception:
+        ts_display = ts[:19]
+
+    vtype_label = {
+        "SPD": "SPEEDING", "RLR": "RED LIGHT", "ILT": "ILLEGAL TURN",
+        "BUS": "BUS LANE", "CON": "CONGESTION", "INS": "NO INSURANCE",
+        "MOT": "NO MOT", "TAX": "NO TAX", "PHN": "PHONE USE", "SBT": "SEATBELT",
+    }.get((vtype or "").upper(), "")
+
+    violation_badge = ""
+    if vtype_label:
+        violation_badge = f"""
+    <rect x="20" y="235" width="220" height="28" rx="5"
+          fill="{viol_col}" fill-opacity="0.15"
+          stroke="{viol_col}" stroke-width="1"/>
+    <text x="130" y="253" fill="{viol_col}" font-size="11"
+          font-family="monospace" font-weight="bold"
+          text-anchor="middle">⚠ VIOLATION: {_escape(vtype_label)}</text>"""
+
+    over_indicator = ""
+    if over:
+        excess = int(speed) - int(limit)
+        over_indicator = f"""
+    <text x="{W-20}" y="253" fill="#ff2d55" font-size="10"
+          font-family="monospace" text-anchor="end">+{excess} OVER LIMIT</text>"""
+
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}">
+  <!-- Background -->
+  <rect width="{W}" height="{H}" fill="#0a0d14"/>
+  <!-- Scanline overlay -->
+  <pattern id="scan" x="0" y="0" width="{W}" height="3" patternUnits="userSpaceOnUse">
+    <rect width="{W}" height="1" fill="#00c8ff" fill-opacity="0.025"/>
+  </pattern>
+  <rect width="{W}" height="{H}" fill="url(#scan)"/>
+  <!-- Border glow -->
+  <rect x="1" y="1" width="{W-2}" height="{H-2}" rx="4"
+        fill="none" stroke="#00c8ff" stroke-width="1" stroke-opacity="0.4"/>
+
+  <!-- Header bar -->
+  <rect x="0" y="0" width="{W}" height="36" fill="#00c8ff" fill-opacity="0.08"/>
+  <circle cx="16" cy="18" r="5" fill="#ff2d55" fill-opacity="0.9"/>
+  <text x="28" y="22" fill="#00c8ff" font-size="10" font-family="monospace"
+        font-weight="bold" letter-spacing="1">ANPR ENFORCEMENT CAMERA</text>
+  <text x="{W-12}" y="22" fill="#8ab4c8" font-size="9" font-family="monospace"
+        text-anchor="end">{_escape(ts_display)}</text>
+
+  <!-- Camera ID + Road -->
+  <text x="20" y="55" fill="#8ab4c8" font-size="9" font-family="monospace">
+    CAM: {_escape(camera_id)}
+  </text>
+  <text x="20" y="68" fill="#8ab4c8" font-size="9" font-family="monospace">
+    ROAD: {_escape(road)}   DIR: {_escape(direction)}   CONF: {_escape(conf_str)}
+  </text>
+
+  <!-- Plate box -->
+  <rect x="100" y="82" width="360" height="80" rx="6"
+        fill="#ffffee" stroke="#e8e800" stroke-width="3"/>
+  <rect x="100" y="82" width="36" height="80" rx="6" fill="#003399"/>
+  <text x="118" y="112" fill="white" font-size="9" font-family="sans-serif"
+        text-anchor="middle" font-weight="bold">GB</text>
+  <text x="118" y="128" fill="#ffcc00" font-size="8" font-family="sans-serif"
+        text-anchor="middle">★</text>
+  <text x="290" y="145" fill="#111" font-size="42" font-family="'UK Number Plate',monospace"
+        font-weight="900" text-anchor="middle" letter-spacing="4">{_escape(plate)}</text>
+
+  <!-- Speed reading -->
+  <text x="20" y="190" fill="#8ab4c8" font-size="9"
+        font-family="monospace">OBSERVED SPEED</text>
+  <text x="20" y="218" fill="{spd_col}" font-size="36"
+        font-family="monospace" font-weight="bold">{_escape(speed_str)}</text>
+  <text x="{W-20}" y="190" fill="#8ab4c8" font-size="9"
+        font-family="monospace" text-anchor="end">SPEED LIMIT</text>
+  <text x="{W-20}" y="218" fill="#e8f4fd" font-size="36"
+        font-family="monospace" font-weight="bold" text-anchor="end">{_escape(limit_str)}</text>
+
+  <!-- Violation badge -->
+  {violation_badge}
+  {over_indicator}
+
+  <!-- Footer -->
+  <rect x="0" y="{H-22}" width="{W}" height="22" fill="#00c8ff" fill-opacity="0.06"/>
+  <text x="{W//2}" y="{H-8}" fill="#8ab4c8" font-size="8"
+        font-family="monospace" text-anchor="middle">
+    © 2026 Belloite Ltd — VANS UK Vehicle Alert Notification System
+  </text>
+</svg>"""
+
+
+@router.get("/admin/cameras/snapshot")
+async def camera_snapshot(
+    plate: str = Query("AB12CDE"),
+    speed: float | None = Query(None),
+    limit: int | None = Query(None),
+    camera_id: str = Query("CAM-UNKNOWN"),
+    road: str = Query(""),
+    ts: str = Query(""),
+    vtype: str = Query(""),
+    direction: str = Query("N"),
+    confidence: float | None = Query(None),
+):
+    """
+    Generate a realistic ANPR camera capture frame as an SVG image.
+
+    Query params map directly to plate/speed/road etc from ANPR readings.
+    Returns image/svg+xml — use directly in <img src="..."> tags.
+    """
+    if not ts:
+        ts = datetime.now(timezone.utc).isoformat()
+    svg = _build_anpr_svg(
+        plate=plate.upper(),
+        speed=speed,
+        limit=limit,
+        camera_id=camera_id,
+        road=road,
+        ts=ts,
+        vtype=vtype,
+        direction=direction,
+        confidence=confidence,
+    )
+    return Response(content=svg, media_type="image/svg+xml")
+
+
+# ── Recent Captures ───────────────────────────────────────────────────────────
+
+@router.get("/admin/captures")
+async def recent_captures(limit: int = 16) -> dict:
+    """
+    Return recent ANPR readings with snapshot URLs for the footage collage.
+
+    Each entry includes all fields needed to build the SVG snapshot URL
+    client-side, plus a pre-built snapshot_url for convenience.
+    """
+    if limit > 50:
+        limit = 50
+
+    async with get_session() as session:
+        readings = (
+            await session.execute(
+                select(ANPRReadingORM)
+                .order_by(ANPRReadingORM.timestamp.desc())
+                .limit(limit)
+            )
+        ).scalars().all()
+
+        # For each reading, check if it generated a violation (for the badge)
+        captures = []
+        for r in readings:
+            # Try to find a matching violation by plate + camera + time window
+            from datetime import timedelta
+            ts = r.timestamp
+            violation = (
+                await session.execute(
+                    select(ViolationORM)
+                    .where(
+                        ViolationORM.vehicle_plate == r.vehicle_plate,
+                        ViolationORM.camera_id == r.camera_id,
+                        ViolationORM.timestamp >= ts - timedelta(seconds=5),
+                        ViolationORM.timestamp <= ts + timedelta(seconds=5),
+                    )
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
+
+            vtype = violation.violation_type if violation else ""
+            captures.append({
+                "id": r.id,
+                "camera_id": r.camera_id,
+                "plate": r.vehicle_plate,
+                "speed": r.observed_speed_mph,
+                "road": r.road or "",
+                "direction": r.direction or "N",
+                "confidence": r.confidence,
+                "timestamp": r.timestamp.isoformat(),
+                "violation_type": vtype,
+                "violation_ref": violation.reference_number if violation else None,
+            })
+
+    return {"captures": captures, "total": len(captures)}

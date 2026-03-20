@@ -40,7 +40,7 @@ class SimulationRequest(BaseModel):
     duration_seconds: int = Field(60, ge=1, le=3600)
 
 
-async def _process_and_notify(raw: dict[str, Any]) -> dict[str, Any]:
+async def process_and_notify(raw: dict[str, Any]) -> dict[str, Any]:
     """Full pipeline: normalize → detect violations → send notifications."""
     normalized = normalize_reading(raw)
     if normalized is None:
@@ -84,7 +84,7 @@ async def submit_anpr_reading(reading: ANPRReading):
     Returns violation details immediately.
     """
     try:
-        result = await _process_and_notify(reading.model_dump())
+        result = await process_and_notify(reading.model_dump())
         return result
     except Exception:
         logger.exception("Failed to process ANPR reading")
@@ -102,7 +102,7 @@ async def submit_anpr_batch(readings: list[ANPRReading]):
     results = []
     for reading in readings:
         try:
-            result = await _process_and_notify(reading.model_dump())
+            result = await process_and_notify(reading.model_dump())
             results.append(result)
         except Exception:
             logger.exception("Failed to process reading for %s", reading.vehicle_plate)
@@ -135,7 +135,7 @@ async def start_simulation(req: SimulationRequest):
             for _ in range(req.readings_per_second):
                 raw = generate_reading()
                 try:
-                    result = await _process_and_notify(raw)
+                    result = await process_and_notify(raw)
                     processed += 1
                     violations_found += result.get("violations_detected", 0)
                 except Exception:
