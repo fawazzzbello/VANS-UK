@@ -1,8 +1,10 @@
 """
 Admin panel endpoints.
 
-VRN Lookup — full vehicle profile from DB + DVLA for any plate.
-Test Suite  — fire a synthetic violation and verify SMS delivery end-to-end.
+VRN Lookup   — full vehicle profile from DB + DVLA for any plate.
+Test Suite   — fire a synthetic violation and verify SMS delivery end-to-end.
+Camera Feed  — list ANPR cameras and stream recent readings per camera.
+Footage      — retrieve evidence details for a specific violation.
 """
 
 import logging
@@ -13,12 +15,12 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from src.alerting.notification_service import format_sms_message, get_sms_client
 from src.ingestion.dvla_lookup import DVLALookupService
 from src.models.database import get_session
-from src.models.orm import AlertLogORM, ViolationORM
+from src.models.orm import AlertLogORM, ANPRReadingORM, ViolationORM
 from src.models.schemas import AlertLogResponse, ViolationResponse
 
 logger = logging.getLogger(__name__)
@@ -236,3 +238,214 @@ async def test_alert(body: TestAlertRequest) -> dict:
         "error": result.get("error"),
         "note": "Test only — no database record created",
     }
+
+
+# ── Camera Monitoring ─────────────────────────────────────────────────────────
+
+@router.get("/admin/cameras")
+async def list_cameras() -> dict:
+    """
+    List all ANPR cameras seen in the database with their latest reading.
+
+    Returns one entry per camera_id with:
+      - location, coordinates
+      - last plate read and timestamp
+      - last observed speed
+      - total reading count
+      - status: ACTIVE (reading in last 5 min) | IDLE (last hour) | OFFLINE
+    """
+    async with get_session() as session:
+        # Get all distinct camera IDs with their most recent reading
+        subq = (
+            select(
+                ANPRReadingORM.camera_id,
+                func.max(ANPRReadingORM.timestamp).label("last_seen"),
+            )
+            .group_by(ANPRReadingORM.camera_id)
+            .subquery()
+        )
+
+        rows = (
+            await session.execute(
+                select(ANPRReadingORM, subq.c.last_seen)
+                .join(
+                    subq,
+                    (ANPRReadingORM.camera_id == subq.c.camera_id)
+                    & (ANPRReadingORM.timestamp == subq.c.last_seen),
+                )
+                .order_by(subq.c.last_seen.desc())
+            )
+        ).all()
+
+        # Count readings per camera
+        count_rows = (
+            await session.execute(
+                select(
+                    ANPRReadingORM.camera_id,
+                    func.count(ANPRReadingORM.id).label("total"),
+                ).group_by(ANPRReadingORM.camera_id)
+            )
+        ).all()
+        counts = {r.camera_id: r.total for r in count_rows}
+
+        now = datetime.now(timezone.utc)
+        cameras = []
+        for reading, last_seen in rows:
+            age_seconds = (now - last_seen.replace(tzinfo=timezone.utc) if last_seen.tzinfo is None else now - last_seen).total_seconds()
+            if age_seconds < 300:
+                status = "ACTIVE"
+            elif age_seconds < 3600:
+                status = "IDLE"
+            else:
+                status = "OFFLINE"
+
+            cameras.append({
+                "camera_id": reading.camera_id,
+                "location": reading.camera_location or reading.road or "Unknown",
+                "road": reading.road,
+                "latitude": reading.latitude,
+                "longitude": reading.longitude,
+                "last_plate": reading.vehicle_plate,
+                "last_speed_mph": reading.observed_speed_mph,
+                "last_seen": last_seen.isoformat() if last_seen else None,
+                "total_readings": counts.get(reading.camera_id, 0),
+                "status": status,
+            })
+
+        return {
+            "cameras": cameras,
+            "total": len(cameras),
+            "timestamp": now.isoformat(),
+        }
+
+
+@router.get("/admin/cameras/{camera_id}/feed")
+async def camera_feed(camera_id: str, limit: int = 20) -> dict:
+    """
+    Recent ANPR readings from a specific camera (most recent first).
+    Used to simulate a live camera feed in the admin dashboard.
+    """
+    if limit > 100:
+        limit = 100
+
+    async with get_session() as session:
+        readings = (
+            await session.execute(
+                select(ANPRReadingORM)
+                .where(ANPRReadingORM.camera_id == camera_id)
+                .order_by(ANPRReadingORM.timestamp.desc())
+                .limit(limit)
+            )
+        ).scalars().all()
+
+        if not readings:
+            raise HTTPException(status_code=404, detail=f"Camera '{camera_id}' not found")
+
+        latest = readings[0]
+        return {
+            "camera_id": camera_id,
+            "location": latest.camera_location or latest.road or "Unknown",
+            "latitude": latest.latitude,
+            "longitude": latest.longitude,
+            "readings": [
+                {
+                    "id": r.id,
+                    "vehicle_plate": r.vehicle_plate,
+                    "observed_speed_mph": r.observed_speed_mph,
+                    "confidence": r.confidence,
+                    "direction": r.direction,
+                    "lane": r.lane,
+                    "image_ref": r.image_ref,
+                    "processed": r.processed,
+                    "timestamp": r.timestamp.isoformat(),
+                }
+                for r in readings
+            ],
+            "count": len(readings),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+
+# ── Violation Evidence ────────────────────────────────────────────────────────
+
+@router.get("/admin/footage/{violation_ref}")
+async def violation_footage(violation_ref: str) -> dict:
+    """
+    Retrieve evidence details for a violation by reference number or numeric ID.
+
+    Returns:
+      - Full violation record
+      - Evidence image URL (if captured by ANPR camera)
+      - Related ANPR readings from the same camera around the time of the violation
+      - Alert history for this violation
+    """
+    async with get_session() as session:
+        # Allow lookup by reference number (e.g. VUK-...) or numeric id
+        if violation_ref.isdigit():
+            row = (
+                await session.execute(
+                    select(ViolationORM).where(ViolationORM.id == int(violation_ref))
+                )
+            ).scalar_one_or_none()
+        else:
+            row = (
+                await session.execute(
+                    select(ViolationORM).where(
+                        ViolationORM.reference_number == violation_ref.upper()
+                    )
+                )
+            ).scalar_one_or_none()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Violation not found")
+
+        # Related ANPR readings: same camera ±60 s of the violation
+        related_readings = []
+        if row.camera_id:
+            from datetime import timedelta
+            ts = row.timestamp
+            related_readings = (
+                await session.execute(
+                    select(ANPRReadingORM)
+                    .where(
+                        ANPRReadingORM.camera_id == row.camera_id,
+                        ANPRReadingORM.timestamp >= ts - timedelta(seconds=60),
+                        ANPRReadingORM.timestamp <= ts + timedelta(seconds=60),
+                    )
+                    .order_by(ANPRReadingORM.timestamp)
+                    .limit(10)
+                )
+            ).scalars().all()
+
+        # Alert history
+        alerts = (
+            await session.execute(
+                select(AlertLogORM)
+                .where(AlertLogORM.violation_id == row.id)
+                .order_by(AlertLogORM.created_at)
+            )
+        ).scalars().all()
+
+        return {
+            "violation": ViolationResponse.model_validate(row).model_dump(mode="json"),
+            "evidence": {
+                "image_url": row.evidence_image_url,
+                "camera_id": row.camera_id,
+                "has_image": bool(row.evidence_image_url),
+            },
+            "related_anpr_readings": [
+                {
+                    "id": r.id,
+                    "vehicle_plate": r.vehicle_plate,
+                    "observed_speed_mph": r.observed_speed_mph,
+                    "confidence": r.confidence,
+                    "image_ref": r.image_ref,
+                    "timestamp": r.timestamp.isoformat(),
+                }
+                for r in related_readings
+            ],
+            "alert_history": [
+                AlertLogResponse.model_validate(a).model_dump(mode="json")
+                for a in alerts
+            ],
+        }
