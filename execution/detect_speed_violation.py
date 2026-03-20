@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Belloite Ltd. All rights reserved.
+# VANS UK — Proprietary and confidential. Unauthorised use is prohibited. See LICENSE.
 """
 Detect speed violations by comparing observed speeds against posted limits.
 
