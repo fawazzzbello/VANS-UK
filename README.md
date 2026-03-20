@@ -1,5 +1,11 @@
 # VANS UK
 
+> **Copyright (c) 2026 Belloite Ltd. All rights reserved.**
+> Proprietary and confidential software. All intellectual property rights belong exclusively to Belloite Ltd.
+> Unauthorised copying, distribution, or use is strictly prohibited. See [LICENSE](./LICENSE) for full terms.
+
+---
+
 ## Vehicle Alert Notification System for the United Kingdom
 
 **Real-time traffic violation detection and instant driver notification, modelled on Dubai's RTA system.**
