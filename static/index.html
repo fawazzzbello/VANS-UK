@@ -1067,6 +1067,249 @@
       margin-top: 4px;
     }
 
+    /* ── Footage & Camera suite ── */
+    .footage-section {
+      margin-bottom: 1.25rem;
+    }
+
+    .footage-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+
+    @media (max-width: 900px) {
+      .footage-grid { grid-template-columns: 1fr; }
+    }
+
+    .camera-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .camera-card {
+      padding: 10px 12px;
+      background: rgba(0,200,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .camera-card:hover {
+      border-color: var(--border-bright);
+      background: rgba(0,200,255,0.07);
+    }
+
+    .camera-card.selected {
+      border-color: var(--accent-cyan);
+      background: rgba(0,200,255,0.08);
+    }
+
+    .camera-card-id {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .camera-card-loc {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 6px;
+    }
+
+    .camera-card-plate {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: 0.08em;
+    }
+
+    .camera-card-time {
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .camera-status-dot {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+
+    .camera-status-dot.active {
+      background: var(--accent-green);
+      box-shadow: 0 0 6px var(--accent-green);
+    }
+
+    .camera-status-dot.idle {
+      background: var(--accent-yellow);
+    }
+
+    .camera-status-dot.offline {
+      background: var(--text-muted);
+    }
+
+    .feed-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.75rem;
+      margin-top: 10px;
+    }
+
+    .feed-table th {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      padding: 6px 8px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .feed-table td {
+      padding: 7px 8px;
+      border-bottom: 1px solid rgba(0,180,255,0.06);
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+    }
+
+    .feed-table tr:last-child td { border-bottom: none; }
+
+    .feed-table .plate-col {
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: 0.08em;
+    }
+
+    .feed-table .speed-col { color: var(--accent-cyan); }
+
+    .feed-table .speed-col.over { color: var(--accent-red); }
+
+    .feed-scroll {
+      max-height: 280px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-bright) transparent;
+    }
+
+    .footage-ref-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 1rem;
+    }
+
+    .footage-ref-input {
+      flex: 1;
+      background: rgba(0,200,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      padding: 9px 14px;
+      font-size: 0.88rem;
+      font-family: var(--font-mono);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .footage-ref-input:focus { border-color: var(--border-bright); }
+
+    .evidence-box {
+      padding: 14px;
+      border-radius: 10px;
+      background: rgba(0,200,255,0.03);
+      border: 1px solid var(--border);
+      font-size: 0.78rem;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .evidence-image-area {
+      width: 100%;
+      aspect-ratio: 16/9;
+      border-radius: 8px;
+      background: rgba(0,0,0,0.4);
+      border: 1px dashed var(--border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .evidence-image-area img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+
+    .evidence-image-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      opacity: 0.5;
+    }
+
+    .evidence-image-placeholder-icon {
+      font-size: 2rem;
+    }
+
+    .evidence-meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .evidence-anpr-list {
+      max-height: 150px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-bright) transparent;
+    }
+
+    .evidence-anpr-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 6px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.72rem;
+      font-family: var(--font-mono);
+    }
+
+    .evidence-anpr-row:last-child { border-bottom: none; }
+
+    .evidence-anpr-plate {
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: 0.08em;
+    }
+
+    .evidence-anpr-time { color: var(--text-muted); font-size: 0.66rem; }
+
     /* ── Loading spinner ── */
     .spinner {
       width: 20px;
@@ -1111,6 +1354,7 @@
   <div class="nav-actions">
     <button class="btn btn-outline" onclick="loadStats()">↻ Refresh</button>
     <a href="/api/docs" target="_blank"><button class="btn btn-outline">API Docs</button></a>
+    <button class="btn btn-outline" onclick="document.getElementById('footage-panel').scrollIntoView({behavior:'smooth'})">📹 Footage</button>
     <button class="btn btn-outline" onclick="document.getElementById('admin-panel').scrollIntoView({behavior:'smooth'})">🔍 Admin</button>
     <button class="btn btn-primary" onclick="document.getElementById('sim-section').scrollIntoView({behavior:'smooth'})">⚡ Simulate</button>
   </div>
@@ -1378,6 +1622,140 @@
     </div>
   </div>
 
+
+  <!-- Footage & Camera Monitoring -->
+  <div class="footage-section" id="footage-panel">
+    <div class="admin-section-title">Footage &amp; Camera Monitoring</div>
+    <div class="footage-grid">
+
+      <!-- Camera Status Grid -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <div class="card-title-dot" style="background:var(--accent-green);box-shadow:0 0 6px var(--accent-green)"></div>
+            ANPR Camera Network
+          </div>
+          <button class="btn btn-outline" style="font-size:0.72rem;padding:4px 10px" onclick="loadCameras()">Refresh</button>
+        </div>
+        <div class="card-body">
+          <div id="camera-grid-loading" class="loading-overlay" style="display:none">
+            <div class="spinner"></div>
+            <span>Loading cameras…</span>
+          </div>
+          <div id="camera-grid-empty" style="display:none;padding:2rem;text-align:center;color:var(--text-muted);font-size:0.82rem">
+            No camera data — run a simulation to generate ANPR readings.
+          </div>
+          <div id="camera-grid" class="camera-grid"></div>
+
+          <!-- Live Feed Panel (shown when a camera is selected) -->
+          <div id="camera-feed-panel" style="display:none;margin-top:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted)">
+                Live Feed — <span id="feed-camera-id" style="color:var(--accent-cyan);font-family:var(--font-mono)"></span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;font-size:0.68rem;color:var(--accent-green)">
+                <div class="status-dot" style="background:var(--accent-green);box-shadow:0 0 6px var(--accent-green);animation:pulse 2s infinite"></div>
+                Live
+              </div>
+            </div>
+            <div class="feed-scroll">
+              <table class="feed-table">
+                <thead>
+                  <tr>
+                    <th>Plate</th>
+                    <th>Speed</th>
+                    <th>Conf%</th>
+                    <th>Time</th>
+                  </tr>
+                </thead>
+                <tbody id="feed-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Violation Evidence Viewer -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <div class="card-title-dot" style="background:var(--accent-yellow);box-shadow:0 0 6px var(--accent-yellow)"></div>
+            Violation Evidence Viewer
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="footage-ref-row">
+            <input
+              class="footage-ref-input"
+              type="text"
+              id="footage-ref-input"
+              placeholder="Violation ref e.g. VUK-20240315-A1B2C or ID"
+              onkeydown="if(event.key==='Enter') loadFootage()"
+            />
+            <button class="btn btn-primary" onclick="loadFootage()" id="footage-btn">Inspect</button>
+          </div>
+
+          <div id="footage-loading" style="display:none" class="loading-overlay">
+            <div class="spinner"></div>
+            <span>Loading evidence…</span>
+          </div>
+
+          <div id="footage-empty" style="display:none;padding:1.5rem;text-align:center;color:var(--text-muted);font-size:0.82rem">
+            No violation found for that reference.
+          </div>
+
+          <div id="footage-result" style="display:none">
+            <div class="evidence-box">
+              <!-- Evidence image / placeholder -->
+              <div class="evidence-image-area" id="footage-image-area">
+                <div class="evidence-image-placeholder">
+                  <div class="evidence-image-placeholder-icon">📷</div>
+                  <div>No evidence image captured</div>
+                </div>
+              </div>
+
+              <!-- Violation meta -->
+              <div class="evidence-meta-grid">
+                <div class="vrn-info-item">
+                  <div class="vrn-info-label">Plate</div>
+                  <div class="vrn-info-val" id="fv-plate">—</div>
+                </div>
+                <div class="vrn-info-item">
+                  <div class="vrn-info-label">Type</div>
+                  <div class="vrn-info-val" id="fv-type">—</div>
+                </div>
+                <div class="vrn-info-item">
+                  <div class="vrn-info-label">Camera</div>
+                  <div class="vrn-info-val" id="fv-camera">—</div>
+                </div>
+                <div class="vrn-info-item">
+                  <div class="vrn-info-label">Road</div>
+                  <div class="vrn-info-val" id="fv-road">—</div>
+                </div>
+                <div class="vrn-info-item">
+                  <div class="vrn-info-label">Speed</div>
+                  <div class="vrn-info-val" id="fv-speed">—</div>
+                </div>
+                <div class="vrn-info-item">
+                  <div class="vrn-info-label">Fine</div>
+                  <div class="vrn-info-val" id="fv-fine">—</div>
+                </div>
+              </div>
+
+              <!-- Related ANPR reads at same camera -->
+              <div id="footage-anpr-section" style="display:none">
+                <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:6px">
+                  Camera Readings ±60s of Violation
+                </div>
+                <div class="evidence-anpr-list" id="footage-anpr-list"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
 
   <!-- Admin Panel -->
   <div class="admin-section" id="admin-panel">
@@ -2096,10 +2474,181 @@ async function sendTestAlert() {
   }
 }
 
+/* ── Camera & Footage Suite ── */
+let selectedCameraId = null;
+let cameraFeedInterval = null;
+
+async function loadCameras() {
+  const grid = document.getElementById('camera-grid');
+  const loading = document.getElementById('camera-grid-loading');
+  const empty = document.getElementById('camera-grid-empty');
+
+  grid.innerHTML = '';
+  loading.style.display = 'flex';
+  empty.style.display = 'none';
+  document.getElementById('camera-feed-panel').style.display = 'none';
+
+  try {
+    const data = await apiFetch('/api/v1/admin/cameras');
+    loading.style.display = 'none';
+
+    if (!data.cameras || data.cameras.length === 0) {
+      empty.style.display = 'block';
+      return;
+    }
+
+    data.cameras.forEach(cam => {
+      const statusClass = cam.status === 'ACTIVE' ? 'active' : cam.status === 'IDLE' ? 'idle' : 'offline';
+      const card = document.createElement('div');
+      card.className = 'camera-card' + (cam.camera_id === selectedCameraId ? ' selected' : '');
+      card.dataset.cameraId = cam.camera_id;
+      card.innerHTML = `
+        <div class="camera-status-dot ${statusClass}"></div>
+        <div class="camera-card-id">${cam.camera_id}</div>
+        <div class="camera-card-loc">${cam.location}</div>
+        <div class="camera-card-plate">${cam.last_plate || '—'}</div>
+        <div class="camera-card-time">${cam.last_seen ? fmtDate(cam.last_seen) : '—'}</div>
+      `;
+      card.onclick = () => selectCamera(cam.camera_id);
+      grid.appendChild(card);
+    });
+
+    // Re-select previously selected camera
+    if (selectedCameraId) {
+      openCameraFeed(selectedCameraId);
+    }
+  } catch (e) {
+    loading.style.display = 'none';
+    empty.style.display = 'block';
+    empty.textContent = 'Failed to load cameras: ' + e.message;
+  }
+}
+
+function selectCamera(cameraId) {
+  selectedCameraId = cameraId;
+
+  // Update selected state on cards
+  document.querySelectorAll('.camera-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.cameraId === cameraId);
+  });
+
+  openCameraFeed(cameraId);
+}
+
+async function openCameraFeed(cameraId) {
+  const panel = document.getElementById('camera-feed-panel');
+  const tbody = document.getElementById('feed-table-body');
+  document.getElementById('feed-camera-id').textContent = cameraId;
+  panel.style.display = 'block';
+
+  // Clear existing poll
+  if (cameraFeedInterval) clearInterval(cameraFeedInterval);
+
+  const refresh = async () => {
+    try {
+      const data = await apiFetch(`/api/v1/admin/cameras/${encodeURIComponent(cameraId)}/feed?limit=20`);
+      tbody.innerHTML = '';
+      (data.readings || []).forEach(r => {
+        const tr = document.createElement('tr');
+        const speed = r.observed_speed_mph;
+        const speedClass = speed && speed > 80 ? 'speed-col over' : 'speed-col';
+        tr.innerHTML = `
+          <td class="plate-col">${r.vehicle_plate}</td>
+          <td class="${speedClass}">${speed ? speed.toFixed(0) + ' mph' : '—'}</td>
+          <td>${r.confidence ? (r.confidence * 100).toFixed(0) + '%' : '—'}</td>
+          <td style="font-size:0.65rem;color:var(--text-muted)">${fmtDate(r.timestamp)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    } catch (_) { /* silently ignore feed poll errors */ }
+  };
+
+  await refresh();
+  cameraFeedInterval = setInterval(refresh, 5000);
+}
+
+async function loadFootage() {
+  const ref = document.getElementById('footage-ref-input').value.trim();
+  if (!ref) return;
+
+  const btn = document.getElementById('footage-btn');
+  const loading = document.getElementById('footage-loading');
+  const empty = document.getElementById('footage-empty');
+  const result = document.getElementById('footage-result');
+
+  btn.disabled = true;
+  btn.textContent = '…';
+  loading.style.display = 'flex';
+  empty.style.display = 'none';
+  result.style.display = 'none';
+
+  try {
+    const data = await apiFetch(`/api/v1/admin/footage/${encodeURIComponent(ref)}`);
+    loading.style.display = 'none';
+
+    const v = data.violation;
+    const ev = data.evidence;
+
+    // Evidence image
+    const imgArea = document.getElementById('footage-image-area');
+    if (ev.has_image && ev.image_url) {
+      imgArea.innerHTML = `<img src="${ev.image_url}" alt="Evidence photo" onerror="this.parentElement.innerHTML='<div class=evidence-image-placeholder><div class=evidence-image-placeholder-icon>⚠️</div><div>Image unavailable</div></div>'" />`;
+    } else {
+      imgArea.innerHTML = `<div class="evidence-image-placeholder"><div class="evidence-image-placeholder-icon">📷</div><div>No evidence image captured</div>${ev.camera_id ? '<div style="font-size:0.65rem;margin-top:4px">Camera: ' + ev.camera_id + '</div>' : ''}</div>`;
+    }
+
+    // Meta fields
+    document.getElementById('fv-plate').textContent = v.vehicle_plate || '—';
+    document.getElementById('fv-type').textContent = v.violation_type || '—';
+    document.getElementById('fv-camera').textContent = v.camera_id || 'Unknown';
+    document.getElementById('fv-road').textContent = v.road || '—';
+    document.getElementById('fv-speed').textContent = v.observed_speed
+      ? `${v.observed_speed.toFixed(0)} mph (limit ${v.speed_limit || '?'} mph)`
+      : '—';
+    document.getElementById('fv-fine').textContent = v.fine_amount_pence
+      ? `£${(v.fine_amount_pence / 100).toFixed(2)}`
+      : '—';
+
+    // Related ANPR readings
+    const anprSection = document.getElementById('footage-anpr-section');
+    const anprList = document.getElementById('footage-anpr-list');
+    if (data.related_anpr_readings && data.related_anpr_readings.length > 0) {
+      anprList.innerHTML = '';
+      data.related_anpr_readings.forEach(r => {
+        const row = document.createElement('div');
+        row.className = 'evidence-anpr-row';
+        row.innerHTML = `
+          <span class="evidence-anpr-plate">${r.vehicle_plate}</span>
+          <span style="color:var(--accent-cyan)">${r.observed_speed_mph ? r.observed_speed_mph.toFixed(0) + ' mph' : '—'}</span>
+          <span class="evidence-anpr-time">${fmtDate(r.timestamp)}</span>
+        `;
+        anprList.appendChild(row);
+      });
+      anprSection.style.display = 'block';
+    } else {
+      anprSection.style.display = 'none';
+    }
+
+    result.style.display = 'block';
+  } catch (e) {
+    loading.style.display = 'none';
+    if (e.message && e.message.includes('404')) {
+      empty.style.display = 'block';
+      empty.textContent = 'No violation found for that reference.';
+    } else {
+      empty.style.display = 'block';
+      empty.textContent = 'Error: ' + e.message;
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Inspect';
+  }
+}
+
 /* ── Init ── */
 async function init() {
   await checkHealth();
-  await Promise.all([loadStats(), loadViolations(), pollFeed()]);
+  await Promise.all([loadStats(), loadViolations(), pollFeed(), loadCameras()]);
 
   // Poll intervals
   feedInterval = setInterval(pollFeed, 3000);
