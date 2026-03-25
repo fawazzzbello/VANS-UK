@@ -176,7 +176,7 @@ async def process_reading(data: dict[str, Any]) -> list[dict[str, Any]]:
                 observed_speed=v.get("observed_speed"),
                 speed_limit=v.get("speed_limit"),
                 camera_id=camera_id,
-                evidence_image_url=image_ref,
+                evidence_image_url=None,  # image_ref is an internal ID, not a URL; snapshot generated on-demand
                 fine_amount_pence=penalty["fine_pence"],
                 points=penalty["points"],
                 status="PENDING",

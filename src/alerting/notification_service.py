@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Belloite Ltd. All rights reserved.
 # VANS UK — Proprietary and confidential. Unauthorised use is prohibited. See LICENSE.
 """
-Instant Notification Service - Dubai-Style Real-Time Alerts.
+Instant Notification Service — Belloite Ltd VANS UK Real-Time Alerts.
 
 Sends immediate SMS/email when a violation is detected.
 Called directly from the API pipeline (no Redis required).
@@ -126,7 +126,7 @@ class SendGridEmailClient:
 def format_sms_message(data: dict) -> str:
     """
     Format a violation notification SMS.
-    Modeled after Dubai's RTA violation SMS format.
+    Format a VANS UK violation notification SMS (Belloite Ltd).
     """
     ref = data.get("reference_number", "N/A")
     v_type = data.get("violation_type", "UNKNOWN")
@@ -255,7 +255,7 @@ def get_email_client() -> SendGridEmailClient:
 
 async def send_violation_notification(violation_data: dict[str, Any]) -> dict[str, Any]:
     """
-    Send instant notification for a violation. SMS first (Dubai-style).
+    Send instant notification for a violation. SMS first.
     Called directly after violation detection - no Redis queue needed.
 
     Returns notification result dict.
