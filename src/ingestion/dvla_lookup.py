@@ -4,7 +4,7 @@
 DVLA Vehicle Enquiry Service Integration.
 
 Provides instant vehicle and registered keeper lookup via the DVLA VES API.
-This is the critical link that enables Dubai-style instant notifications -
+This is the critical link that enables VANS UK instant notifications —
 when ANPR reads a plate, we look up the registered keeper to send them
 an immediate SMS notification of their violation.
 

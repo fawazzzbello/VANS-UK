@@ -33,19 +33,25 @@ logger = logging.getLogger(__name__)
 # Static files directory
 STATIC_DIR = Path(__file__).parent.parent.parent / "static"
 
+# ── ANPR background task state ────────────────────────────────────────────────
+# Controlled via POST /api/v1/admin/anpr/stop and /start
+anpr_running: bool = True
+
 
 async def _perpetual_anpr():
     """
     Background task: continuously generate and process ANPR readings.
 
-    Runs at ~2 readings/second forever so the dashboard shows live
-    violations without any manual simulation trigger.
+    Runs at ~2 readings/second while anpr_running is True.
+    Pauses (checks every second) when anpr_running is False.
     Violations are broadcast to all connected WebSocket clients.
     """
-    # Brief delay so the DB is fully initialised before the first read
-    await asyncio.sleep(3)
+    await asyncio.sleep(3)  # let DB fully initialise first
     logger.info("Perpetual ANPR background task started (2 reads/sec)")
     while True:
+        if not anpr_running:
+            await asyncio.sleep(1)
+            continue
         raw = generate_reading()
         try:
             result = await process_and_notify(raw)
@@ -69,7 +75,7 @@ app = FastAPI(
     description=(
         "Vehicle Alert Notification System - Real-Time Driver Violation "
         "Alerts for the United Kingdom. Instant SMS notifications for "
-        "traffic violations, modelled on Dubai's RTA system."
+        "traffic violations. A Belloite Ltd product."
     ),
     version="1.0.0",
     lifespan=lifespan,

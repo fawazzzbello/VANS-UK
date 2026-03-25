@@ -8,7 +8,7 @@
 ## What This System Is
 
 **VANS UK** (Vehicle Alert Notification System UK) is a real-time driver violation detection and
-notification platform for the United Kingdom — modelled on Dubai's RTA instant-SMS system.
+notification platform for the United Kingdom — a Belloite Ltd product.
 
 When a driver commits a traffic violation (speeding, red-light, no insurance, etc.) they receive
 an SMS within seconds. The pipeline:

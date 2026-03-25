@@ -243,6 +243,40 @@ async def test_alert(body: TestAlertRequest) -> dict:
     }
 
 
+# ── ANPR Task Control ────────────────────────────────────────────────────────
+
+@router.get("/admin/anpr/status")
+async def anpr_status() -> dict:
+    """Return current state of the perpetual ANPR background task."""
+    import src.api.main as _main
+    return {
+        "running": _main.anpr_running,
+        "status": "running" if _main.anpr_running else "stopped",
+    }
+
+
+@router.post("/admin/anpr/stop")
+async def anpr_stop() -> dict:
+    """Stop the perpetual ANPR violation detection task."""
+    import src.api.main as _main
+    if not _main.anpr_running:
+        raise HTTPException(status_code=409, detail="ANPR task is already stopped")
+    _main.anpr_running = False
+    logger.info("ANPR background task STOPPED by admin")
+    return {"status": "stopped", "message": "ANPR detection paused — no new violations will be recorded"}
+
+
+@router.post("/admin/anpr/start")
+async def anpr_start() -> dict:
+    """Resume the perpetual ANPR violation detection task."""
+    import src.api.main as _main
+    if _main.anpr_running:
+        raise HTTPException(status_code=409, detail="ANPR task is already running")
+    _main.anpr_running = True
+    logger.info("ANPR background task STARTED by admin")
+    return {"status": "running", "message": "ANPR detection resumed"}
+
+
 # ── Camera Monitoring ─────────────────────────────────────────────────────────
 
 @router.get("/admin/cameras")

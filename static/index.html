@@ -1432,7 +1432,7 @@
     </div>
     <h1>Real-Time<br/><span>Violation Detection</span></h1>
     <p class="hero-desc">
-      Dubai-style instant driver alerts. When a vehicle commits a traffic violation,
+      Belloite Ltd instant driver alerts. When a vehicle commits a traffic violation,
       the registered keeper receives an SMS within seconds.
     </p>
 
@@ -1706,10 +1706,15 @@
           <div class="card-title-dot" style="background:var(--accent-green);box-shadow:0 0 6px var(--accent-green);animation:pulse 1.5s infinite"></div>
           Live ANPR Captures
         </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <div style="font-size:0.68rem;color:var(--accent-green);display:flex;align-items:center;gap:4px">
-            <div class="status-dot" style="background:var(--accent-green);box-shadow:0 0 6px var(--accent-green)"></div> Auto-refreshing
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:0.68rem;display:flex;align-items:center;gap:5px">
+            <div id="anpr-status-dot" class="status-dot" style="background:var(--accent-green);box-shadow:0 0 6px var(--accent-green)"></div>
+            <span id="anpr-status-label" style="color:var(--accent-green)">Detection running</span>
           </div>
+          <button id="anpr-toggle-btn" onclick="toggleAnpr()"
+                  style="font-size:0.72rem;padding:4px 12px;border:1px solid rgba(255,45,85,0.5);border-radius:6px;background:rgba(255,45,85,0.15);color:#ff2d55;cursor:pointer">
+            ⏹ Stop Detection
+          </button>
         </div>
       </div>
       <div class="card-body">
@@ -2568,25 +2573,37 @@ let selectedCameraId = null;
 let cameraFeedInterval = null;
 let capturesInterval = null;
 
+/* Build snapshot URL — URLSearchParams handles all encoding correctly.
+   Always assign to img.src via JS property, never embed in innerHTML. */
 function snapshotUrl(c) {
-  const p = new URLSearchParams({
-    plate: c.plate || c.vehicle_plate || '',
-    camera_id: c.camera_id || '',
-    road: c.road || '',
-    direction: c.direction || 'N',
-    ts: c.timestamp || '',
-    vtype: c.violation_type || '',
-  });
-  if (c.speed != null) p.set('speed', c.speed);
-  if (c.limit != null) p.set('limit', c.limit);
+  const p = new URLSearchParams();
+  p.set('plate',     c.plate || c.vehicle_plate || '');
+  p.set('camera_id', c.camera_id || '');
+  p.set('road',      c.road || '');
+  p.set('direction', c.direction || 'N');
+  p.set('ts',        c.timestamp || '');
+  p.set('vtype',     c.violation_type || '');
+  if (c.speed  != null) p.set('speed',      c.speed);
+  if (c.limit  != null) p.set('limit',      c.limit);
   if (c.confidence != null) p.set('confidence', c.confidence);
-  return `/api/v1/admin/cameras/snapshot?${p}`;
+  return '/api/v1/admin/cameras/snapshot?' + p.toString();
 }
 
-function openLightbox(src, meta) {
+/* Create an <img> element with src set via JS property (not innerHTML).
+   This guarantees the URL is never HTML-parsed and & is never mangled. */
+function makeSnapshotImg(url, style, onClick) {
+  const img = document.createElement('img');
+  img.src = url;          // ← set via JS property, NOT innerHTML
+  img.loading = 'lazy';
+  if (style) Object.assign(img.style, style);
+  if (onClick) img.addEventListener('click', onClick);
+  return img;
+}
+
+function openLightbox(src, metaHtml) {
   const lb = document.getElementById('lightbox');
   document.getElementById('lightbox-img').src = src;
-  document.getElementById('lightbox-meta').innerHTML = meta || '';
+  document.getElementById('lightbox-meta').innerHTML = metaHtml || '';
   lb.style.display = 'flex';
   document.body.style.overflow = 'hidden';
 }
@@ -2598,11 +2615,62 @@ function closeLightbox() {
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
 
+/* ── ANPR system start / stop ── */
+async function loadAnprStatus() {
+  try {
+    const data = await apiFetch('/api/v1/admin/anpr/status');
+    _applyAnprStatus(data.running);
+  } catch (_) {}
+}
+
+function _applyAnprStatus(running) {
+  const btn = document.getElementById('anpr-toggle-btn');
+  const dot = document.getElementById('anpr-status-dot');
+  const label = document.getElementById('anpr-status-label');
+  if (!btn) return;
+  if (running) {
+    btn.textContent = '⏹ Stop Detection';
+    btn.style.background = 'rgba(255,45,85,0.15)';
+    btn.style.borderColor = 'rgba(255,45,85,0.5)';
+    btn.style.color = '#ff2d55';
+    dot.style.background = 'var(--accent-green)';
+    dot.style.boxShadow = '0 0 8px var(--accent-green)';
+    label.textContent = 'Detection running';
+    label.style.color = 'var(--accent-green)';
+  } else {
+    btn.textContent = '▶ Start Detection';
+    btn.style.background = 'rgba(0,255,135,0.1)';
+    btn.style.borderColor = 'rgba(0,255,135,0.4)';
+    btn.style.color = '#00ff87';
+    dot.style.background = 'var(--text-muted)';
+    dot.style.boxShadow = 'none';
+    label.textContent = 'Detection stopped';
+    label.style.color = 'var(--text-muted)';
+  }
+}
+
+async function toggleAnpr() {
+  const btn = document.getElementById('anpr-toggle-btn');
+  btn.disabled = true;
+  try {
+    const statusData = await apiFetch('/api/v1/admin/anpr/status');
+    const endpoint = statusData.running ? '/api/v1/admin/anpr/stop' : '/api/v1/admin/anpr/start';
+    const resp = await fetch(API + endpoint, { method: 'POST' });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail || `HTTP ${resp.status}`);
+    _applyAnprStatus(data.status === 'running');
+    toast(data.status === 'running' ? 'ANPR Started' : 'ANPR Stopped', data.message, data.status === 'running' ? '▶' : '⏹');
+  } catch (e) {
+    toast('Error', e.message, '❌');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 /* ── Captures collage ── */
 async function loadCaptures() {
   const collage = document.getElementById('captures-collage');
-  const loading = document.getElementById('captures-loading');
-  const empty = document.getElementById('captures-empty');
+  const empty   = document.getElementById('captures-empty');
 
   try {
     const data = await apiFetch('/api/v1/admin/captures?limit=16');
@@ -2612,38 +2680,44 @@ async function loadCaptures() {
       return;
     }
     empty.style.display = 'none';
-
     collage.innerHTML = '';
+
     data.captures.forEach(c => {
-      const imgSrc = snapshotUrl(c);
+      const url = snapshotUrl(c);
       const isViolation = !!c.violation_type;
-      const badge = isViolation
-        ? `<span class="capture-thumb-badge violation">⚠ ${c.violation_type}</span>`
-        : `<span class="capture-thumb-badge clear">✓ CLEAR</span>`;
-      const speedStr = c.speed != null ? `${Math.round(c.speed)} mph` : '—';
-      const meta = `
-        <span style="color:#00c8ff">${c.plate}</span>
-        <span>${c.camera_id}</span>
-        <span>${speedStr}</span>
-        <span>${c.road}</span>
-      `;
-      const metaLightbox = [
-        `<span>Plate: <b style="color:#00c8ff">${c.plate}</b></span>`,
-        `<span>Camera: ${c.camera_id}</span>`,
-        `<span>Road: ${c.road}</span>`,
-        `<span>Speed: ${speedStr}</span>`,
-        c.violation_type ? `<span style="color:#ff2d55">Violation: ${c.violation_type}</span>` : '',
-        `<span>${fmtDate(c.timestamp)}</span>`,
-      ].filter(Boolean).join('&nbsp;&nbsp;|&nbsp;&nbsp;');
+      const speedStr = c.speed != null ? Math.round(c.speed) + ' mph' : '—';
 
       const thumb = document.createElement('div');
       thumb.className = 'capture-thumb';
-      thumb.innerHTML = `
-        ${badge}
-        <img src="${imgSrc}" alt="ANPR ${c.plate}" loading="lazy"/>
-        <div class="capture-thumb-label">${meta}</div>
-      `;
-      thumb.onclick = () => openLightbox(imgSrc, metaLightbox);
+
+      // Badge — plain HTML, no URL involved
+      const badge = document.createElement('span');
+      badge.className = 'capture-thumb-badge ' + (isViolation ? 'violation' : 'clear');
+      badge.textContent = isViolation ? '⚠ ' + c.violation_type : '✓ CLEAR';
+      thumb.appendChild(badge);
+
+      // Image — src set via JS property
+      const img = makeSnapshotImg(url, {width:'100%', display:'block'}, (e) => {
+        e.stopPropagation();
+        const meta = [
+          `<span>Plate: <b style="color:#00c8ff">${c.plate}</b></span>`,
+          `<span>Camera: ${c.camera_id}</span>`,
+          `<span>Road: ${c.road}</span>`,
+          `<span>Speed: ${speedStr}</span>`,
+          isViolation ? `<span style="color:#ff2d55">Violation: ${c.violation_type}</span>` : '',
+          `<span>${fmtDate(c.timestamp)}</span>`,
+        ].filter(Boolean).join('&nbsp;&nbsp;|&nbsp;&nbsp;');
+        openLightbox(url, meta);
+      });
+      thumb.appendChild(img);
+
+      // Label
+      const lbl = document.createElement('div');
+      lbl.className = 'capture-thumb-label';
+      lbl.innerHTML = `<span style="color:#00c8ff">${c.plate}</span><span>${speedStr}</span>`;
+      thumb.appendChild(lbl);
+
+      thumb.addEventListener('click', () => openLightbox(url, `<span>${c.plate}</span>`));
       collage.appendChild(thumb);
     });
   } catch (_) { /* silently ignore poll errors */ }
@@ -2651,9 +2725,9 @@ async function loadCaptures() {
 
 /* ── Camera network ── */
 async function loadCameras() {
-  const grid = document.getElementById('camera-grid');
+  const grid    = document.getElementById('camera-grid');
   const loading = document.getElementById('camera-grid-loading');
-  const empty = document.getElementById('camera-grid-empty');
+  const empty   = document.getElementById('camera-grid-empty');
 
   grid.innerHTML = '';
   loading.style.display = 'flex';
@@ -2671,26 +2745,33 @@ async function loadCameras() {
 
     data.cameras.forEach(cam => {
       const statusClass = cam.status === 'ACTIVE' ? 'active' : cam.status === 'IDLE' ? 'idle' : 'offline';
-      // Build a snapshot URL for the latest read from this camera
-      const thumbSrc = snapshotUrl({
-        plate: cam.last_plate || '??',
-        camera_id: cam.camera_id,
-        road: cam.road || '',
-        direction: 'N',
-        timestamp: cam.last_seen || '',
-        speed: cam.last_speed_mph,
-        limit: null,
-        violation_type: '',
-        confidence: null,
+      const thumbUrl = snapshotUrl({
+        plate: cam.last_plate || '??', camera_id: cam.camera_id,
+        road: cam.road || '', direction: 'N', timestamp: cam.last_seen || '',
+        speed: cam.last_speed_mph, limit: null, violation_type: '', confidence: null,
       });
 
       const card = document.createElement('div');
       card.className = 'camera-card' + (cam.camera_id === selectedCameraId ? ' selected' : '');
       card.dataset.cameraId = cam.camera_id;
-      card.innerHTML = `
-        <div class="camera-status-dot ${statusClass}"></div>
-        <img src="${thumbSrc}" alt="${cam.camera_id}" style="width:100%;border-radius:4px;margin-bottom:6px;display:block"
-             onclick="event.stopPropagation();openLightbox('${thumbSrc}','Camera: ${cam.camera_id} | Road: ${cam.road || ''} | Last plate: ${cam.last_plate || ''}')"/>
+
+      // Status dot
+      const dot = document.createElement('div');
+      dot.className = 'camera-status-dot ' + statusClass;
+      card.appendChild(dot);
+
+      // Thumbnail — img.src set via JS property
+      const img = makeSnapshotImg(thumbUrl,
+        {width:'100%', borderRadius:'4px', marginBottom:'6px', display:'block', cursor:'zoom-in'},
+        (e) => {
+          e.stopPropagation();
+          openLightbox(thumbUrl, `<span>${cam.camera_id}</span> | <span>${cam.road || ''}</span> | <span>${cam.last_plate || ''}</span>`);
+        }
+      );
+      card.appendChild(img);
+
+      // Text labels — plain strings, no URLs
+      card.innerHTML += `
         <div class="camera-card-id">${cam.camera_id}</div>
         <div class="camera-card-loc">${cam.location}</div>
         <div style="display:flex;justify-content:space-between;margin-top:4px">
@@ -2699,7 +2780,7 @@ async function loadCameras() {
         </div>
         <div class="camera-card-time">${cam.last_seen ? fmtDate(cam.last_seen) : '—'}</div>
       `;
-      card.onclick = () => selectCamera(cam.camera_id);
+      card.addEventListener('click', () => selectCamera(cam.camera_id));
       grid.appendChild(card);
     });
 
@@ -2720,39 +2801,60 @@ function selectCamera(cameraId) {
 }
 
 async function openCameraFeed(cameraId) {
-  const panel = document.getElementById('camera-feed-panel');
   const tbody = document.getElementById('feed-table-body');
   document.getElementById('feed-camera-id').textContent = cameraId;
-  panel.style.display = 'block';
+  document.getElementById('camera-feed-panel').style.display = 'block';
 
   if (cameraFeedInterval) clearInterval(cameraFeedInterval);
 
   const refresh = async () => {
     try {
-      const data = await apiFetch(`/api/v1/admin/cameras/${encodeURIComponent(cameraId)}/feed?limit=15`);
+      const data = await apiFetch('/api/v1/admin/cameras/' + encodeURIComponent(cameraId) + '/feed?limit=15');
       tbody.innerHTML = '';
       (data.readings || []).forEach(r => {
         const speed = r.observed_speed_mph;
         const speedClass = speed && speed > 80 ? 'speed-col over' : 'speed-col';
-        const thumbSrc = snapshotUrl({
+        const rUrl = snapshotUrl({
           plate: r.vehicle_plate, camera_id: cameraId,
           road: data.location || '', direction: r.direction || 'N',
           timestamp: r.timestamp, speed: speed, limit: null,
           violation_type: '', confidence: r.confidence,
         });
+
         const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td class="plate-col">${r.vehicle_plate}</td>
-          <td class="${speedClass}">${speed ? speed.toFixed(0) + ' mph' : '—'}</td>
-          <td>${r.confidence ? (r.confidence * 100).toFixed(0) + '%' : '—'}</td>
-          <td>
-            <img src="${thumbSrc}" alt="${r.vehicle_plate}"
-                 style="height:32px;border-radius:3px;cursor:pointer;border:1px solid rgba(0,200,255,0.2)"
-                 onclick="openLightbox('${thumbSrc}','${r.vehicle_plate} | ${speed ? speed.toFixed(0) + ' mph' : ''} | ${fmtDate(r.timestamp)}')"
-                 loading="lazy"/>
-          </td>
-          <td style="font-size:0.65rem;color:var(--text-muted)">${fmtDate(r.timestamp)}</td>
-        `;
+
+        // Plate cell
+        const tdPlate = document.createElement('td');
+        tdPlate.className = 'plate-col';
+        tdPlate.textContent = r.vehicle_plate;
+        tr.appendChild(tdPlate);
+
+        // Speed cell
+        const tdSpeed = document.createElement('td');
+        tdSpeed.className = speedClass;
+        tdSpeed.textContent = speed ? speed.toFixed(0) + ' mph' : '—';
+        tr.appendChild(tdSpeed);
+
+        // Confidence cell
+        const tdConf = document.createElement('td');
+        tdConf.textContent = r.confidence ? (r.confidence * 100).toFixed(0) + '%' : '—';
+        tr.appendChild(tdConf);
+
+        // Capture thumbnail cell — img.src via JS property
+        const tdImg = document.createElement('td');
+        const thumbImg = makeSnapshotImg(rUrl,
+          {height:'32px', borderRadius:'3px', border:'1px solid rgba(0,200,255,0.2)', cursor:'zoom-in'},
+          () => openLightbox(rUrl, `<span>${r.vehicle_plate}</span> | <span>${speed ? speed.toFixed(0) + ' mph' : ''}</span> | <span>${fmtDate(r.timestamp)}</span>`)
+        );
+        tdImg.appendChild(thumbImg);
+        tr.appendChild(tdImg);
+
+        // Time cell
+        const tdTime = document.createElement('td');
+        tdTime.style.cssText = 'font-size:0.65rem;color:var(--text-muted)';
+        tdTime.textContent = fmtDate(r.timestamp);
+        tr.appendChild(tdTime);
+
         tbody.appendChild(tr);
       });
     } catch (_) { /* ignore */ }
@@ -2767,10 +2869,10 @@ async function loadFootage() {
   const ref = document.getElementById('footage-ref-input').value.trim();
   if (!ref) return;
 
-  const btn = document.getElementById('footage-btn');
+  const btn     = document.getElementById('footage-btn');
   const loading = document.getElementById('footage-loading');
-  const empty = document.getElementById('footage-empty');
-  const result = document.getElementById('footage-result');
+  const empty   = document.getElementById('footage-empty');
+  const result  = document.getElementById('footage-result');
 
   btn.disabled = true;
   btn.textContent = '…';
@@ -2779,61 +2881,80 @@ async function loadFootage() {
   result.style.display = 'none';
 
   try {
-    const data = await apiFetch(`/api/v1/admin/footage/${encodeURIComponent(ref)}`);
+    const data = await apiFetch('/api/v1/admin/footage/' + encodeURIComponent(ref));
     loading.style.display = 'none';
 
-    const v = data.violation;
+    const v  = data.violation;
     const ev = data.evidence;
 
-    // Generate ANPR frame as evidence image (falls back to stored URL if available)
+    // Always generate ANPR frame via snapshot endpoint — evidence_image_url is
+    // only set for real camera integrations, not simulated data.
+    const frameSrc = snapshotUrl({
+      plate: v.vehicle_plate, camera_id: v.camera_id || '',
+      road: v.road || '', direction: 'N', timestamp: v.timestamp,
+      speed: v.observed_speed, limit: v.speed_limit,
+      violation_type: v.violation_type, confidence: null,
+    });
+
+    // Build evidence image via DOM (no innerHTML for the src)
     const imgArea = document.getElementById('footage-image-area');
-    const frameSrc = ev.has_image && ev.image_url
-      ? ev.image_url
-      : snapshotUrl({
-          plate: v.vehicle_plate, camera_id: v.camera_id || '',
-          road: v.road || '', direction: 'N',
-          timestamp: v.timestamp, speed: v.observed_speed,
-          limit: v.speed_limit, violation_type: v.violation_type,
-          confidence: null,
-        });
+    imgArea.innerHTML = '';
+    const frameImg = makeSnapshotImg(frameSrc,
+      {width:'100%', height:'100%', objectFit:'contain', cursor:'zoom-in'},
+      () => openLightbox(frameSrc,
+        `<span>${v.vehicle_plate}</span> | <span>${v.violation_type}</span> | <span>${v.road || ''}</span> | <span>${fmtDate(v.timestamp)}</span>`)
+    );
+    imgArea.appendChild(frameImg);
 
-    imgArea.innerHTML = `
-      <img src="${frameSrc}" alt="Evidence frame" style="width:100%;height:100%;object-fit:contain;cursor:zoom-in"
-           onclick="openLightbox('${frameSrc}','${v.vehicle_plate} | ${v.violation_type} | ${v.road || ''} | ${fmtDate(v.timestamp)}')" />
-    `;
-
-    document.getElementById('fv-plate').textContent = v.vehicle_plate || '—';
-    document.getElementById('fv-type').textContent = v.violation_type || '—';
+    document.getElementById('fv-plate').textContent  = v.vehicle_plate || '—';
+    document.getElementById('fv-type').textContent   = v.violation_type || '—';
     document.getElementById('fv-camera').textContent = v.camera_id || 'Unknown';
-    document.getElementById('fv-road').textContent = v.road || '—';
-    document.getElementById('fv-speed').textContent = v.observed_speed
-      ? `${v.observed_speed.toFixed(0)} mph (limit ${v.speed_limit || '?'} mph)`
-      : '—';
-    document.getElementById('fv-fine').textContent = v.fine_amount_pence
-      ? `£${(v.fine_amount_pence / 100).toFixed(2)}`
-      : '—';
+    document.getElementById('fv-road').textContent   = v.road || '—';
+    document.getElementById('fv-speed').textContent  = v.observed_speed
+      ? v.observed_speed.toFixed(0) + ' mph (limit ' + (v.speed_limit || '?') + ' mph)' : '—';
+    document.getElementById('fv-fine').textContent   = v.fine_amount_pence
+      ? '£' + (v.fine_amount_pence / 100).toFixed(2) : '—';
 
     const anprSection = document.getElementById('footage-anpr-section');
-    const anprList = document.getElementById('footage-anpr-list');
+    const anprList    = document.getElementById('footage-anpr-list');
     if (data.related_anpr_readings && data.related_anpr_readings.length > 0) {
       anprList.innerHTML = '';
       data.related_anpr_readings.forEach(r => {
-        const row = document.createElement('div');
-        row.className = 'evidence-anpr-row';
-        const rSrc = snapshotUrl({
+        const rUrl = snapshotUrl({
           plate: r.vehicle_plate, camera_id: ev.camera_id || '',
           road: v.road || '', direction: 'N', timestamp: r.timestamp,
           speed: r.observed_speed_mph, limit: null,
           violation_type: r.vehicle_plate === v.vehicle_plate ? v.violation_type : '',
           confidence: r.confidence,
         });
-        row.innerHTML = `
-          <span class="evidence-anpr-plate" style="cursor:pointer" onclick="openLightbox('${rSrc}','')">${r.vehicle_plate}</span>
-          <span style="color:var(--accent-cyan)">${r.observed_speed_mph ? r.observed_speed_mph.toFixed(0) + ' mph' : '—'}</span>
-          <img src="${rSrc}" alt="${r.vehicle_plate}" style="height:28px;border-radius:3px;cursor:pointer;border:1px solid rgba(0,200,255,0.15)"
-               onclick="openLightbox('${rSrc}','${r.vehicle_plate} | ${fmtDate(r.timestamp)}')" loading="lazy"/>
-          <span class="evidence-anpr-time">${fmtDate(r.timestamp)}</span>
-        `;
+
+        const row = document.createElement('div');
+        row.className = 'evidence-anpr-row';
+
+        const plateSp = document.createElement('span');
+        plateSp.className = 'evidence-anpr-plate';
+        plateSp.style.cursor = 'pointer';
+        plateSp.textContent = r.vehicle_plate;
+        plateSp.addEventListener('click', () => openLightbox(rUrl, '<span>' + r.vehicle_plate + '</span>'));
+        row.appendChild(plateSp);
+
+        const speedSp = document.createElement('span');
+        speedSp.style.color = 'var(--accent-cyan)';
+        speedSp.textContent = r.observed_speed_mph ? r.observed_speed_mph.toFixed(0) + ' mph' : '—';
+        row.appendChild(speedSp);
+
+        // Mini capture thumbnail — src via JS
+        const rImg = makeSnapshotImg(rUrl,
+          {height:'28px', borderRadius:'3px', border:'1px solid rgba(0,200,255,0.15)', cursor:'zoom-in'},
+          () => openLightbox(rUrl, '<span>' + r.vehicle_plate + '</span> | <span>' + fmtDate(r.timestamp) + '</span>')
+        );
+        row.appendChild(rImg);
+
+        const timeSp = document.createElement('span');
+        timeSp.className = 'evidence-anpr-time';
+        timeSp.textContent = fmtDate(r.timestamp);
+        row.appendChild(timeSp);
+
         anprList.appendChild(row);
       });
       anprSection.style.display = 'block';
@@ -2844,7 +2965,7 @@ async function loadFootage() {
     result.style.display = 'block';
   } catch (e) {
     loading.style.display = 'none';
-    empty.style.display = e.message.includes('404') ? 'block' : 'block';
+    empty.style.display = 'block';
     empty.textContent = e.message.includes('404')
       ? 'No violation found for that reference.'
       : 'Error: ' + e.message;
@@ -2857,7 +2978,7 @@ async function loadFootage() {
 /* ── Init ── */
 async function init() {
   await checkHealth();
-  await Promise.all([loadStats(), loadViolations(), pollFeed(), loadCameras(), loadCaptures()]);
+  await Promise.all([loadStats(), loadViolations(), pollFeed(), loadCameras(), loadCaptures(), loadAnprStatus()]);
 
   feedInterval = setInterval(pollFeed, 3000);
   statsInterval = setInterval(loadStats, 15000);

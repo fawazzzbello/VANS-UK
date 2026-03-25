@@ -8,7 +8,7 @@
 
 ## Vehicle Alert Notification System for the United Kingdom
 
-**Real-time traffic violation detection and instant driver notification, modelled on Dubai's RTA system.**
+**Real-time traffic violation detection and instant driver notification — a Belloite Ltd product.**
 
 ---
 
@@ -16,11 +16,9 @@
 
 The UK currently has no unified system for instantly notifying drivers of traffic violations. Penalties arrive by post days or weeks later, reducing their deterrent effect and creating administrative overhead.
 
-Dubai's Roads and Transport Authority (RTA) solved this: when a driver commits a violation, they receive an SMS notification within seconds. This system has been credited with significantly improving road safety compliance.
-
 ### The Solution
 
-VANS UK replicates Dubai's instant notification model for the UK road network:
+VANS UK provides instant notification for the UK road network:
 
 ```
 ANPR Camera Read → Vehicle Identification → DVLA Lookup → Violation Detection → Instant SMS
