@@ -16,13 +16,14 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.api.routes import violations, traffic, subscriptions, system, anpr, admin
+from src.api.routes.auth import router as auth_router, verify_session_token, COOKIE_NAME
 from src.api.routes.anpr import process_and_notify
 from src.ingestion.anpr_processor import generate_reading
 from src.models.database import init_db
@@ -33,9 +34,12 @@ logger = logging.getLogger(__name__)
 # Static files directory
 STATIC_DIR = Path(__file__).parent.parent.parent / "static"
 
-# ── ANPR background task state ────────────────────────────────────────────────
-# Controlled via POST /api/v1/admin/anpr/stop and /start
+# ── Background task state ─────────────────────────────────────────────────────
+# anpr_running: controlled via POST /api/v1/admin/anpr/stop|start
+# add_auto_forward: when True, each detected violation triggers an ADD lookup
+#   and forwards a driver-data notification (requires Twilio + ADD_API_KEY or mock)
 anpr_running: bool = True
+add_auto_forward: bool = False
 
 
 async def _perpetual_anpr():
@@ -45,7 +49,13 @@ async def _perpetual_anpr():
     Runs at ~2 readings/second while anpr_running is True.
     Pauses (checks every second) when anpr_running is False.
     Violations are broadcast to all connected WebSocket clients.
+
+    When add_auto_forward is True, each violation also triggers an ADD driver
+    lookup and broadcasts the driver data event to WebSocket clients.
     """
+    from src.ingestion.add_lookup import ADDLookupService
+    _add = ADDLookupService()
+
     await asyncio.sleep(3)  # let DB fully initialise first
     logger.info("Perpetual ANPR background task started (2 reads/sec)")
     while True:
@@ -57,6 +67,16 @@ async def _perpetual_anpr():
             result = await process_and_notify(raw)
             for v in result.get("violations", []):
                 await manager.broadcast({"event": "violation", "data": v})
+                if add_auto_forward:
+                    try:
+                        plate  = v.get("vehicle_plate", "")
+                        driver = await _add.lookup_driver(plate)
+                        await manager.broadcast({
+                            "event": "add_data",
+                            "data": _add.driver_to_dict(driver),
+                        })
+                    except Exception:
+                        logger.exception("ADD auto-forward failed for %s", v.get("vehicle_plate"))
         except Exception:
             logger.exception("Background ANPR task error")
         await asyncio.sleep(0.5)
@@ -97,6 +117,7 @@ app.add_middleware(
 )
 
 # Register route modules
+app.include_router(auth_router, tags=["Auth"])
 app.include_router(system.router, tags=["System"])
 app.include_router(violations.router, prefix="/api/v1", tags=["Violations"])
 app.include_router(traffic.router, prefix="/api/v1", tags=["Traffic"])
@@ -171,13 +192,29 @@ async def ws_violations(ws: WebSocket):
 
 # ── Root route — serve the dashboard ─────────────────────────────────────────
 
+@app.get("/login", include_in_schema=False)
+async def login_page():
+    """Serve the login page."""
+    login = STATIC_DIR / "login.html"
+    if login.exists():
+        return FileResponse(str(login), media_type="text/html")
+    return HTMLResponse(content="<h1>Login</h1>", status_code=200)
+
+
 @app.get("/", include_in_schema=False)
-async def dashboard():
-    """Serve the VANS UK futuristic dashboard frontend."""
+async def dashboard(request: Request):
+    """
+    Serve the VANS UK dashboard.
+
+    Unauthenticated requests are redirected to /login.
+    """
+    token = request.cookies.get(COOKIE_NAME)
+    if not verify_session_token(token):
+        return RedirectResponse(url="/login", status_code=302)
+
     index = STATIC_DIR / "index.html"
     if index.exists():
         return FileResponse(str(index), media_type="text/html")
-    # Fallback if static files are not present
     return HTMLResponse(content=_fallback_html(), status_code=200)
 
 

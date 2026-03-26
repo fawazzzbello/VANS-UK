@@ -1417,8 +1417,10 @@
     <button class="btn btn-outline" onclick="loadStats()">↻ Refresh</button>
     <a href="/api/docs" target="_blank"><button class="btn btn-outline">API Docs</button></a>
     <button class="btn btn-outline" onclick="document.getElementById('footage-panel').scrollIntoView({behavior:'smooth'})">📹 Footage</button>
+    <button class="btn btn-outline" onclick="document.getElementById('add-panel').scrollIntoView({behavior:'smooth'})">🪪 Driver Data</button>
     <button class="btn btn-outline" onclick="document.getElementById('admin-panel').scrollIntoView({behavior:'smooth'})">🔍 Admin</button>
     <button class="btn btn-primary" onclick="document.getElementById('sim-section').scrollIntoView({behavior:'smooth'})">⚡ Simulate</button>
+    <button class="btn btn-danger" onclick="handleLogout()" id="logout-btn" style="font-size:0.75rem;padding:6px 12px">Sign Out</button>
   </div>
 </nav>
 
@@ -1968,6 +1970,120 @@
         </div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- ── ADD: Access to Driver Data ── -->
+  <div class="section" id="add-panel">
+    <div class="section-header">
+      <div class="section-title">
+        <div class="section-title-dot" style="background:var(--accent-purple);box-shadow:0 0 8px var(--accent-purple)"></div>
+        Driver Data — DVLA ADD
+      </div>
+      <div class="section-subtitle">Access to Driver Data · Licence status · Penalty points · Endorsements</div>
+    </div>
+
+    <div class="admin-grid">
+      <!-- ADD lookup card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <div class="card-title-dot" style="background:var(--accent-purple);box-shadow:0 0 6px var(--accent-purple)"></div>
+            VRN Driver Lookup
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="vrn-input-row">
+            <input
+              class="vrn-input"
+              type="text"
+              id="add-vrn-input"
+              placeholder="AB12 CDE"
+              maxlength="10"
+              onkeydown="if(event.key==='Enter') lookupADD()"
+            />
+            <button class="btn btn-primary" onclick="lookupADD()" id="add-btn">Lookup</button>
+          </div>
+
+          <div id="add-loading" style="display:none" class="loading-overlay">
+            <div class="spinner"></div>
+            <span>Querying DVLA ADD…</span>
+          </div>
+
+          <div id="add-result" style="display:none;margin-top:1rem">
+            <!-- Driver summary chips -->
+            <div id="add-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:1rem"></div>
+            <!-- Info grid -->
+            <div id="add-info" class="vrn-vehicle-info" style="margin-bottom:1rem"></div>
+            <!-- Endorsements table -->
+            <div id="add-endorsements-wrap" style="display:none">
+              <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:8px">Endorsements</div>
+              <table id="add-endorsements-table" style="width:100%;border-collapse:collapse;font-size:0.78rem">
+                <thead>
+                  <tr style="color:var(--text-muted);font-family:var(--font-mono);font-size:0.7rem">
+                    <th style="text-align:left;padding:4px 6px;border-bottom:1px solid var(--border)">Code</th>
+                    <th style="text-align:left;padding:4px 6px;border-bottom:1px solid var(--border)">Offence</th>
+                    <th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border)">Pts</th>
+                    <th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border)">Date</th>
+                    <th style="text-align:center;padding:4px 6px;border-bottom:1px solid var(--border)">Active</th>
+                  </tr>
+                </thead>
+                <tbody id="add-endorsements-body"></tbody>
+              </table>
+            </div>
+            <!-- Categories -->
+            <div id="add-cats-wrap" style="display:none;margin-top:1rem">
+              <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:6px">Licence Categories</div>
+              <div id="add-cats" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+            </div>
+            <!-- Manual notify button -->
+            <div style="margin-top:1.25rem;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <input class="sim-input" type="tel" id="add-notify-phone" placeholder="+44… override phone (optional)" style="flex:1;min-width:200px" />
+              <button class="btn btn-primary" onclick="addManualNotify()" id="add-notify-btn">📱 Notify Driver</button>
+            </div>
+            <div id="add-notify-result" style="display:none;margin-top:0.75rem;font-size:0.8rem;font-family:var(--font-mono);padding:10px;background:rgba(0,0,0,0.3);border-radius:6px;border:1px solid var(--border)"></div>
+          </div>
+
+          <div id="add-empty" style="display:none;padding:2rem;text-align:center;color:var(--text-muted);font-size:0.82rem">
+            No driver data found.
+          </div>
+        </div>
+      </div>
+
+      <!-- ADD Auto-forward control card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <div class="card-title-dot" style="background:var(--accent-cyan);box-shadow:0 0 6px var(--accent-cyan)"></div>
+            Auto-Forward Control
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="sim-status" id="add-af-status" style="margin-bottom:1.25rem">
+            <div class="status-dot" id="add-af-dot" style="background:var(--text-muted);box-shadow:none"></div>
+            <span id="add-af-text">Checking…</span>
+          </div>
+
+          <p style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:1.25rem;line-height:1.6">
+            When enabled, every detected violation automatically triggers a DVLA ADD driver lookup.
+            Driver data is broadcast to all connected dashboard clients in real time.
+          </p>
+
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary" onclick="addAutoForwardEnable()" id="add-af-enable-btn" style="flex:1">
+              ▶ Enable Auto-Forward
+            </button>
+            <button class="btn btn-danger" onclick="addAutoForwardDisable()" id="add-af-disable-btn" style="flex:1">
+              ⏹ Disable Auto-Forward
+            </button>
+          </div>
+
+          <div style="margin-top:1.5rem;font-size:0.72rem;color:var(--text-muted);font-family:var(--font-mono)">
+            Configure <code>ADD_API_KEY</code> environment variable to use the live DVLA ADD API.
+            Without a key, realistic deterministic mock data is returned for each VRN.
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -2975,10 +3091,214 @@ async function loadFootage() {
   }
 }
 
+/* ── Auth ── */
+async function handleLogout() {
+  await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
+  window.location.replace('/login');
+}
+
+/* ── ADD: Access to Driver Data ── */
+let _addCurrentVrn = null;
+
+async function lookupADD() {
+  const raw = document.getElementById('add-vrn-input').value.trim().toUpperCase().replace(/\s/g,'');
+  if (!raw) return;
+  _addCurrentVrn = raw;
+
+  const btn    = document.getElementById('add-btn');
+  const loading = document.getElementById('add-loading');
+  const result  = document.getElementById('add-result');
+  const empty   = document.getElementById('add-empty');
+
+  btn.disabled = true;
+  loading.style.display = 'flex';
+  result.style.display  = 'none';
+  empty.style.display   = 'none';
+
+  try {
+    const resp = await fetch(`/api/v1/admin/add/${encodeURIComponent(raw)}`, { credentials: 'include' });
+    if (resp.status === 404) { empty.style.display = 'block'; return; }
+    if (!resp.ok) throw new Error(await resp.text());
+    const d = await resp.json();
+    _renderADD(d);
+    result.style.display = 'block';
+  } catch (e) {
+    showToast('ADD lookup failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    loading.style.display = 'none';
+  }
+}
+
+function _renderADD(d) {
+  // Status chip colour
+  const statusColour = {
+    FULL: 'var(--accent-green)', PROVISIONAL: 'var(--accent-yellow)',
+    DISQUALIFIED: 'var(--accent-red)', EXPIRED: 'var(--accent-orange)',
+    REVOKED: 'var(--accent-red)',
+  }[d.licence_status] || 'var(--text-muted)';
+
+  const pts = d.total_penalty_points;
+  const ptsColour = pts >= 12 ? 'var(--accent-red)' : pts >= 9 ? 'var(--accent-orange)' : pts >= 6 ? 'var(--accent-yellow)' : 'var(--accent-green)';
+
+  // Chips
+  const chips = [
+    `<span style="background:${statusColour}1a;border:1px solid ${statusColour};border-radius:20px;padding:3px 10px;font-size:0.73rem;color:${statusColour};font-family:var(--font-mono)">${d.licence_status}</span>`,
+    `<span style="background:${ptsColour}1a;border:1px solid ${ptsColour};border-radius:20px;padding:3px 10px;font-size:0.73rem;color:${ptsColour};font-family:var(--font-mono)">${pts}/12 pts</span>`,
+    d.is_disqualified ? `<span style="background:rgba(255,45,85,0.12);border:1px solid var(--accent-red);border-radius:20px;padding:3px 10px;font-size:0.73rem;color:var(--accent-red);font-family:var(--font-mono)">DISQUALIFIED until ${d.disqualified_until||'?'}</span>` : '',
+    d.medical_restrictions ? `<span style="background:rgba(255,107,0,0.12);border:1px solid var(--accent-orange);border-radius:20px;padding:3px 10px;font-size:0.73rem;color:var(--accent-orange);font-family:var(--font-mono)">Medical Restrictions</span>` : '',
+    `<span style="background:rgba(120,160,200,0.08);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:0.73rem;color:var(--text-muted);font-family:var(--font-mono)">Source: ${d.source}</span>`,
+  ].filter(Boolean).join('');
+  document.getElementById('add-chips').innerHTML = chips;
+
+  // Info grid (reuse vrn-vehicle-info style)
+  const rows = [
+    ['Driver', d.driver_name || '—'],
+    ['Date of Birth', d.date_of_birth || '—'],
+    ['Licence No.', d.licence_number || '—'],
+    ['Photocard No.', d.photocard_number || '—'],
+    ['Issued', d.issue_date || '—'],
+    ['Expires', d.expiry_date || '—'],
+    ['Address', d.address || '—'],
+  ];
+  document.getElementById('add-info').innerHTML = rows.map(([k,v]) =>
+    `<div class="vrn-info-item"><div class="vrn-info-label">${k}</div><div class="vrn-info-value">${v}</div></div>`
+  ).join('');
+
+  // Endorsements
+  const ew = document.getElementById('add-endorsements-wrap');
+  const eb = document.getElementById('add-endorsements-body');
+  if (d.endorsements && d.endorsements.length) {
+    ew.style.display = 'block';
+    eb.innerHTML = d.endorsements.map(e => {
+      const c = e.still_active ? 'var(--accent-red)' : 'var(--text-muted)';
+      return `<tr style="border-bottom:1px solid rgba(0,180,255,0.06)">
+        <td style="padding:5px 6px;font-family:var(--font-mono);color:var(--accent-cyan)">${e.offence_code}</td>
+        <td style="padding:5px 6px;color:var(--text-secondary);font-size:0.75rem">${e.offence_description}</td>
+        <td style="padding:5px 6px;text-align:right;font-family:var(--font-mono);color:${c}">${e.points}</td>
+        <td style="padding:5px 6px;text-align:right;font-size:0.73rem;color:var(--text-muted)">${e.conviction_date}</td>
+        <td style="padding:5px 6px;text-align:center">${e.still_active ? '<span style="color:var(--accent-red)">●</span>' : '<span style="color:var(--text-muted)">○</span>'}</td>
+      </tr>`;
+    }).join('');
+  } else {
+    ew.style.display = 'none';
+  }
+
+  // Categories
+  const cw = document.getElementById('add-cats-wrap');
+  const cv = document.getElementById('add-cats');
+  if (d.categories && d.categories.length) {
+    cw.style.display = 'block';
+    cv.innerHTML = d.categories.map(c =>
+      `<span title="${c.description}" style="background:rgba(0,200,255,0.08);border:1px solid var(--border-bright);border-radius:6px;padding:4px 10px;font-family:var(--font-mono);font-size:0.78rem;color:var(--accent-cyan)">${c.code}</span>`
+    ).join('');
+  } else {
+    cw.style.display = 'none';
+  }
+
+  // Clear previous notify result
+  document.getElementById('add-notify-result').style.display = 'none';
+}
+
+async function addManualNotify() {
+  if (!_addCurrentVrn) { showToast('Look up a VRN first', 'error'); return; }
+  const phone = document.getElementById('add-notify-phone').value.trim();
+  if (!phone) { showToast('Enter a phone number to notify', 'error'); return; }
+
+  const btn = document.getElementById('add-notify-btn');
+  btn.disabled = true;
+  const orig = btn.textContent;
+  btn.textContent = 'Sending…';
+
+  try {
+    const resp = await fetch(`/api/v1/admin/add/${encodeURIComponent(_addCurrentVrn)}/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ phone }),
+    });
+    const data = await resp.json();
+    const box  = document.getElementById('add-notify-result');
+    box.style.display = 'block';
+    if (data.notification_sent) {
+      box.style.color = 'var(--accent-green)';
+      box.textContent = `✓ Notification sent to ${phone} (SID: ${data.twilio_sid || 'mock'})`;
+    } else {
+      box.style.color = 'var(--accent-red)';
+      box.textContent = `✗ Failed: ${data.error || 'Unknown error'}`;
+    }
+  } catch (e) {
+    showToast('Notify failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
+}
+
+async function loadAddAutoForwardStatus() {
+  try {
+    const resp = await fetch('/api/v1/admin/add/auto-forward/status', { credentials: 'include' });
+    const d = await resp.json();
+    _applyAddAutoForwardStatus(d.enabled);
+  } catch (_) {}
+}
+
+function _applyAddAutoForwardStatus(enabled) {
+  const dot  = document.getElementById('add-af-dot');
+  const text = document.getElementById('add-af-text');
+  const enBtn = document.getElementById('add-af-enable-btn');
+  const disBtn = document.getElementById('add-af-disable-btn');
+  if (enabled) {
+    dot.style.background = 'var(--accent-green)';
+    dot.style.boxShadow  = '0 0 8px var(--accent-green)';
+    text.textContent = 'Auto-Forward ENABLED — driver data fetched on each violation';
+    text.style.color = 'var(--accent-green)';
+    enBtn.disabled  = true;
+    disBtn.disabled = false;
+  } else {
+    dot.style.background = 'var(--text-muted)';
+    dot.style.boxShadow  = 'none';
+    text.textContent = 'Auto-Forward DISABLED';
+    text.style.color = 'var(--text-muted)';
+    enBtn.disabled  = false;
+    disBtn.disabled = true;
+  }
+}
+
+async function addAutoForwardEnable() {
+  try {
+    const resp = await fetch('/api/v1/admin/add/auto-forward/enable', { method: 'POST', credentials: 'include' });
+    if (!resp.ok && resp.status !== 409) throw new Error(await resp.text());
+    _applyAddAutoForwardStatus(true);
+    showToast('ADD auto-forward enabled', 'success');
+  } catch (e) { showToast('Failed: ' + e.message, 'error'); }
+}
+
+async function addAutoForwardDisable() {
+  try {
+    const resp = await fetch('/api/v1/admin/add/auto-forward/disable', { method: 'POST', credentials: 'include' });
+    if (!resp.ok && resp.status !== 409) throw new Error(await resp.text());
+    _applyAddAutoForwardStatus(false);
+    showToast('ADD auto-forward disabled', 'success');
+  } catch (e) { showToast('Failed: ' + e.message, 'error'); }
+}
+
 /* ── Init ── */
 async function init() {
+  // Auth guard — redirect to login if not authenticated
+  try {
+    const authResp = await fetch('/auth/status', { credentials: 'include' });
+    const authData = await authResp.json();
+    if (!authData.authenticated) {
+      window.location.replace('/login');
+      return;
+    }
+  } catch (_) {
+    // If check fails, let the server handle it on next API call
+  }
+
   await checkHealth();
-  await Promise.all([loadStats(), loadViolations(), pollFeed(), loadCameras(), loadCaptures(), loadAnprStatus()]);
+  await Promise.all([loadStats(), loadViolations(), pollFeed(), loadCameras(), loadCaptures(), loadAnprStatus(), loadAddAutoForwardStatus()]);
 
   feedInterval = setInterval(pollFeed, 3000);
   statsInterval = setInterval(loadStats, 15000);

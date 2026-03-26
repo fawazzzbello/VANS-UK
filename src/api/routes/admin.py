@@ -277,6 +277,45 @@ async def anpr_start() -> dict:
     return {"status": "running", "message": "ANPR detection resumed"}
 
 
+# ── ADD Auto-Forward Control ──────────────────────────────────────────────────
+
+@router.get("/admin/add/auto-forward/status")
+async def add_auto_forward_status() -> dict:
+    """Return whether ADD auto-forward is currently enabled."""
+    import src.api.main as _main
+    return {
+        "enabled": _main.add_auto_forward,
+        "status": "enabled" if _main.add_auto_forward else "disabled",
+    }
+
+
+@router.post("/admin/add/auto-forward/enable")
+async def add_auto_forward_enable() -> dict:
+    """
+    Enable ADD auto-forward.
+
+    When enabled, every detected violation triggers a DVLA ADD driver lookup
+    and broadcasts the driver data over WebSocket to connected dashboards.
+    """
+    import src.api.main as _main
+    if _main.add_auto_forward:
+        raise HTTPException(status_code=409, detail="ADD auto-forward is already enabled")
+    _main.add_auto_forward = True
+    logger.info("ADD auto-forward ENABLED by admin")
+    return {"status": "enabled", "message": "Driver data will now be fetched automatically on each violation"}
+
+
+@router.post("/admin/add/auto-forward/disable")
+async def add_auto_forward_disable() -> dict:
+    """Disable ADD auto-forward."""
+    import src.api.main as _main
+    if not _main.add_auto_forward:
+        raise HTTPException(status_code=409, detail="ADD auto-forward is already disabled")
+    _main.add_auto_forward = False
+    logger.info("ADD auto-forward DISABLED by admin")
+    return {"status": "disabled", "message": "ADD auto-forward paused"}
+
+
 # ── Camera Monitoring ─────────────────────────────────────────────────────────
 
 @router.get("/admin/cameras")
@@ -708,3 +747,98 @@ async def recent_captures(limit: int = 16) -> dict:
             })
 
     return {"captures": captures, "total": len(captures)}
+
+
+# ── ADD (Access to Driver Data) ───────────────────────────────────────────────
+
+from src.ingestion.add_lookup import ADDLookupService  # noqa: E402
+
+_add_service: ADDLookupService | None = None
+
+
+def _get_add() -> ADDLookupService:
+    global _add_service
+    if _add_service is None:
+        _add_service = ADDLookupService()
+    return _add_service
+
+
+@router.get("/admin/add/{vrn}")
+async def add_lookup(vrn: str) -> dict:
+    """
+    Query DVLA Access to Driver Data (ADD) for the registered driver of a VRN.
+
+    Returns licence number, status, penalty points, endorsements, categories,
+    and disqualification data. Uses live ADD API when ADD_API_KEY is configured;
+    returns deterministic mock data otherwise (same VRN always → same driver).
+    """
+    vrn = vrn.upper().replace(" ", "").strip()
+    if len(vrn) < 2:
+        raise HTTPException(status_code=400, detail="Invalid VRN")
+
+    driver = await _get_add().lookup_driver(vrn)
+    return _get_add().driver_to_dict(driver)
+
+
+class ADDNotifyRequest(BaseModel):
+    phone: str | None = None   # override phone number (optional)
+    message: str | None = None # custom message (optional)
+
+
+@router.post("/admin/add/{vrn}/notify")
+async def add_notify(vrn: str, body: ADDNotifyRequest | None = None) -> dict:
+    """
+    Manually dispatch an enforcement notification enriched with ADD driver data.
+
+    Looks up driver data for the VRN, then sends an SMS to the keeper's phone
+    (or body.phone if provided) with their licence status and points tally.
+
+    Requires Twilio to be configured (TWILIO_* env vars).
+    """
+    vrn = vrn.upper().replace(" ", "").strip()
+    if len(vrn) < 2:
+        raise HTTPException(status_code=400, detail="Invalid VRN")
+
+    driver = await _get_add().lookup_driver(vrn)
+    phone  = (body.phone if body and body.phone else None)
+
+    if not phone:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "No phone number available. Provide body.phone or configure "
+                "keeper contact details in the database."
+            ),
+        )
+
+    custom_msg = body.message if body and body.message else None
+    if not custom_msg:
+        pts  = driver.total_penalty_points
+        stat = driver.licence_status
+        disq = f" — DISQUALIFIED until {driver.disqualified_until}" if driver.is_disqualified else ""
+        custom_msg = (
+            f"VANS UK ENFORCEMENT NOTICE\n"
+            f"VRN: {vrn}\n"
+            f"Licence: {driver.licence_number}\n"
+            f"Status: {stat}{disq}\n"
+            f"Penalty Points: {pts}/12\n"
+            f"This is an official notification from VANS UK. "
+            f"Please contact DVLA or your enforcement authority."
+        )
+
+    result = await get_sms_client().send_sms(phone, custom_msg)
+    logger.info("ADD manual notify for %s to %s — sent=%s", vrn, phone, result["success"])
+
+    return {
+        "vrn": vrn,
+        "driver_name": driver.driver_name,
+        "licence_status": driver.licence_status,
+        "total_penalty_points": driver.total_penalty_points,
+        "is_disqualified": driver.is_disqualified,
+        "notification_sent": result["success"],
+        "phone": phone,
+        "message": custom_msg,
+        "twilio_sid": result.get("message_sid"),
+        "error": result.get("error"),
+        "data_source": driver.source,
+    }
