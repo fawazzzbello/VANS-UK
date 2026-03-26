@@ -2011,6 +2011,7 @@
           </div>
 
           <div id="add-result" style="display:none;margin-top:1rem">
+            <div id="add-source-banner"></div>
             <!-- Driver summary chips -->
             <div id="add-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:1rem"></div>
             <!-- Info grid -->
@@ -3131,7 +3132,26 @@ async function lookupADD() {
 }
 
 function _renderADD(d) {
-  // Status chip colour
+  const isLive = d.add_api_live;
+  const vesLive = d.dvla_ves_live;
+
+  // ── Data source banner ──
+  const bannerEl = document.getElementById('add-source-banner');
+  if (isLive) {
+    bannerEl.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;margin-bottom:1rem;background:rgba(0,255,135,0.08);border:1px solid rgba(0,255,135,0.3);font-size:0.78rem;font-family:var(--font-mono);color:var(--accent-green)';
+    bannerEl.innerHTML = '<span style="font-size:1rem">✓</span> <span><strong>LIVE DATA</strong> — DVLA ADD API (driver data) + DVLA VES API (vehicle data)</span>';
+  } else {
+    bannerEl.style.cssText = 'display:flex;align-items:flex-start;gap:8px;padding:10px 12px;border-radius:8px;margin-bottom:1rem;background:rgba(255,107,0,0.08);border:1px solid rgba(255,107,0,0.4);font-size:0.78rem;font-family:var(--font-mono);color:var(--accent-orange)';
+    bannerEl.innerHTML = `<span style="font-size:1rem;flex-shrink:0">⚠</span>
+      <span>
+        <strong>DRIVER DATA IS SIMULATED</strong> — ADD_API_KEY not configured.<br>
+        Licence, name, DOB, penalty points &amp; endorsements are <em>deterministic mock data</em> (same VRN always returns the same result).<br>
+        ${vesLive ? 'Vehicle data (make/model/colour/tax/MOT) is <strong style="color:var(--accent-green)">REAL</strong> from DVLA VES API.' : 'Vehicle data is also simulated (set DVLA_API_KEY for real vehicle data).'}<br>
+        To enable live driver data: set <code style="background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:3px">ADD_API_KEY</code> env var (requires DVLA organisational approval).
+      </span>`;
+  }
+
+  // ── Status chips ──
   const statusColour = {
     FULL: 'var(--accent-green)', PROVISIONAL: 'var(--accent-yellow)',
     DISQUALIFIED: 'var(--accent-red)', EXPIRED: 'var(--accent-orange)',
@@ -3141,31 +3161,48 @@ function _renderADD(d) {
   const pts = d.total_penalty_points;
   const ptsColour = pts >= 12 ? 'var(--accent-red)' : pts >= 9 ? 'var(--accent-orange)' : pts >= 6 ? 'var(--accent-yellow)' : 'var(--accent-green)';
 
-  // Chips
+  const mockTag = isLive ? '' : `<span style="background:rgba(255,107,0,0.12);border:1px solid rgba(255,107,0,0.4);border-radius:20px;padding:3px 10px;font-size:0.7rem;color:var(--accent-orange);font-family:var(--font-mono)">SIMULATED DRIVER DATA</span>`;
+
   const chips = [
     `<span style="background:${statusColour}1a;border:1px solid ${statusColour};border-radius:20px;padding:3px 10px;font-size:0.73rem;color:${statusColour};font-family:var(--font-mono)">${d.licence_status}</span>`,
     `<span style="background:${ptsColour}1a;border:1px solid ${ptsColour};border-radius:20px;padding:3px 10px;font-size:0.73rem;color:${ptsColour};font-family:var(--font-mono)">${pts}/12 pts</span>`,
     d.is_disqualified ? `<span style="background:rgba(255,45,85,0.12);border:1px solid var(--accent-red);border-radius:20px;padding:3px 10px;font-size:0.73rem;color:var(--accent-red);font-family:var(--font-mono)">DISQUALIFIED until ${d.disqualified_until||'?'}</span>` : '',
     d.medical_restrictions ? `<span style="background:rgba(255,107,0,0.12);border:1px solid var(--accent-orange);border-radius:20px;padding:3px 10px;font-size:0.73rem;color:var(--accent-orange);font-family:var(--font-mono)">Medical Restrictions</span>` : '',
-    `<span style="background:rgba(120,160,200,0.08);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:0.73rem;color:var(--text-muted);font-family:var(--font-mono)">Source: ${d.source}</span>`,
+    mockTag,
   ].filter(Boolean).join('');
   document.getElementById('add-chips').innerHTML = chips;
 
-  // Info grid (reuse vrn-vehicle-info style)
-  const rows = [
-    ['Driver', d.driver_name || '—'],
-    ['Date of Birth', d.date_of_birth || '—'],
-    ['Licence No.', d.licence_number || '—'],
-    ['Photocard No.', d.photocard_number || '—'],
-    ['Issued', d.issue_date || '—'],
-    ['Expires', d.expiry_date || '—'],
-    ['Address', d.address || '—'],
-  ];
-  document.getElementById('add-info').innerHTML = rows.map(([k,v]) =>
-    `<div class="vrn-info-item"><div class="vrn-info-label">${k}</div><div class="vrn-info-value">${v}</div></div>`
-  ).join('');
+  // ── Vehicle info (DVLA VES — real when configured) ──
+  const v = d.vehicle || {};
+  const vesTag  = vesLive ? `<span style="color:var(--accent-green);font-size:0.7rem"> ✓ LIVE</span>` : `<span style="color:var(--text-muted);font-size:0.7rem"> (simulated)</span>`;
+  const addTag  = isLive  ? `<span style="color:var(--accent-green);font-size:0.7rem"> ✓ LIVE</span>` : `<span style="color:var(--accent-orange);font-size:0.7rem"> (simulated)</span>`;
 
-  // Endorsements
+  const infoRows = [
+    // Vehicle section header
+    `<div class="vrn-info-item" style="grid-column:1/-1;padding-bottom:2px;border-bottom:1px solid var(--border);margin-bottom:4px">
+      <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted)">Vehicle Data${vesTag}</div>
+    </div>`,
+    v.make   ? `<div class="vrn-info-item"><div class="vrn-info-label">Make</div><div class="vrn-info-value">${v.make}</div></div>` : '',
+    v.colour ? `<div class="vrn-info-item"><div class="vrn-info-label">Colour</div><div class="vrn-info-value">${v.colour}</div></div>` : '',
+    v.year   ? `<div class="vrn-info-item"><div class="vrn-info-label">Year</div><div class="vrn-info-value">${v.year}</div></div>` : '',
+    v.fuel_type ? `<div class="vrn-info-item"><div class="vrn-info-label">Fuel</div><div class="vrn-info-value">${v.fuel_type}</div></div>` : '',
+    v.tax_status ? `<div class="vrn-info-item"><div class="vrn-info-label">Tax</div><div class="vrn-info-value" style="color:${v.tax_status==='Taxed'?'var(--accent-green)':'var(--accent-red)'}">${v.tax_status}${v.tax_due_date?' (due '+v.tax_due_date+')':''}</div></div>` : '',
+    v.mot_status ? `<div class="vrn-info-item"><div class="vrn-info-label">MOT</div><div class="vrn-info-value" style="color:${v.mot_status==='Valid'?'var(--accent-green)':'var(--accent-red)'}">${v.mot_status}${v.mot_expiry_date?' (exp '+v.mot_expiry_date+')':''}</div></div>` : '',
+    // Driver section header
+    `<div class="vrn-info-item" style="grid-column:1/-1;padding-bottom:2px;border-bottom:1px solid var(--border);margin:6px 0 4px">
+      <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted)">Driver Data${addTag}</div>
+    </div>`,
+    `<div class="vrn-info-item"><div class="vrn-info-label">Driver</div><div class="vrn-info-value">${d.driver_name || '—'}</div></div>`,
+    `<div class="vrn-info-item"><div class="vrn-info-label">Date of Birth</div><div class="vrn-info-value">${d.date_of_birth || '—'}</div></div>`,
+    `<div class="vrn-info-item"><div class="vrn-info-label">Licence No.</div><div class="vrn-info-value">${d.licence_number || '—'}</div></div>`,
+    `<div class="vrn-info-item"><div class="vrn-info-label">Photocard No.</div><div class="vrn-info-value">${d.photocard_number || '—'}</div></div>`,
+    `<div class="vrn-info-item"><div class="vrn-info-label">Issued</div><div class="vrn-info-value">${d.issue_date || '—'}</div></div>`,
+    `<div class="vrn-info-item"><div class="vrn-info-label">Expires</div><div class="vrn-info-value">${d.expiry_date || '—'}</div></div>`,
+    `<div class="vrn-info-item" style="grid-column:1/-1"><div class="vrn-info-label">Address</div><div class="vrn-info-value">${d.address || '—'}</div></div>`,
+  ].filter(Boolean).join('');
+  document.getElementById('add-info').innerHTML = infoRows;
+
+  // ── Endorsements ──
   const ew = document.getElementById('add-endorsements-wrap');
   const eb = document.getElementById('add-endorsements-body');
   if (d.endorsements && d.endorsements.length) {
@@ -3184,7 +3221,7 @@ function _renderADD(d) {
     ew.style.display = 'none';
   }
 
-  // Categories
+  // ── Categories ──
   const cw = document.getElementById('add-cats-wrap');
   const cv = document.getElementById('add-cats');
   if (d.categories && d.categories.length) {

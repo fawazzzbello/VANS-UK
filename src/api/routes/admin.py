@@ -768,16 +768,46 @@ async def add_lookup(vrn: str) -> dict:
     """
     Query DVLA Access to Driver Data (ADD) for the registered driver of a VRN.
 
-    Returns licence number, status, penalty points, endorsements, categories,
-    and disqualification data. Uses live ADD API when ADD_API_KEY is configured;
-    returns deterministic mock data otherwise (same VRN always → same driver).
+    Returns:
+      - vehicle: real DVLA VES data (make/model/colour/tax/MOT) when DVLA_API_KEY is set
+      - driver: live ADD API data when ADD_API_KEY is configured;
+        deterministic mock data otherwise (clearly flagged)
+      - add_api_live: whether ADD_API_KEY is configured (affects driver data accuracy)
+      - dvla_ves_live: whether DVLA_API_KEY is configured (affects vehicle data accuracy)
     """
     vrn = vrn.upper().replace(" ", "").strip()
     if len(vrn) < 2:
         raise HTTPException(status_code=400, detail="Invalid VRN")
 
+    import os
+    add_api_live  = bool(os.environ.get("ADD_API_KEY", ""))
+    dvla_ves_live = bool(os.environ.get("DVLA_API_KEY", ""))
+
+    # Driver data (ADD API or mock)
     driver = await _get_add().lookup_driver(vrn)
-    return _get_add().driver_to_dict(driver)
+    result = _get_add().driver_to_dict(driver)
+
+    # Vehicle data (DVLA VES — real when DVLA_API_KEY is set)
+    vehicle_data: dict = {}
+    async with get_session() as session:
+        vehicle = await _get_dvla().lookup_vehicle(vrn, session)
+        vehicle_data = {
+            "make":           vehicle.make,
+            "model":          vehicle.model,
+            "colour":         vehicle.colour,
+            "year":           vehicle.year,
+            "fuel_type":      vehicle.fuel_type,
+            "tax_status":     vehicle.tax_status,
+            "tax_due_date":   vehicle.tax_due_date,
+            "mot_status":     vehicle.mot_status,
+            "mot_expiry_date": vehicle.mot_expiry_date,
+            "keeper_name":    vehicle.keeper_name,
+        }
+
+    result["vehicle"] = vehicle_data
+    result["add_api_live"]  = add_api_live
+    result["dvla_ves_live"] = dvla_ves_live
+    return result
 
 
 class ADDNotifyRequest(BaseModel):
